@@ -13,20 +13,27 @@ import (
 )
 
 func TestCommand(t *testing.T) {
+	// p makes an absolute path on this OS: on Windows it needs a drive.
+	p := func(s string) string {
+		if runtime.GOOS == "windows" {
+			return `C:` + filepath.FromSlash(s)
+		}
+		return s
+	}
 	cases := []struct {
 		name string
 		argv []string
 		path string
 		want []string
 	}{
-		{"appended", []string{"open", "-a", "/Applications/X.app"}, "/p/a b.png",
-			[]string{"open", "-a", "/Applications/X.app", "/p/a b.png"}},
-		{"replaced in place", []string{"code", "--wait", "{}", "--new"}, "/p/a.txt",
-			[]string{"code", "--wait", "/p/a.txt", "--new"}},
-		{"replaced twice", []string{"diff", "{}", "{}"}, "/p/a.txt",
-			[]string{"diff", "/p/a.txt", "/p/a.txt"}},
-		{"program alone", []string{"viewer"}, "/p/a.txt",
-			[]string{"viewer", "/p/a.txt"}},
+		{"appended", []string{"open", "-a", "/Applications/X.app"}, p("/p/a b.png"),
+			[]string{"open", "-a", "/Applications/X.app", p("/p/a b.png")}},
+		{"replaced in place", []string{"code", "--wait", "{}", "--new"}, p("/p/a.txt"),
+			[]string{"code", "--wait", p("/p/a.txt"), "--new"}},
+		{"replaced twice", []string{"diff", "{}", "{}"}, p("/p/a.txt"),
+			[]string{"diff", p("/p/a.txt"), p("/p/a.txt")}},
+		{"program alone", []string{"viewer"}, p("/p/a.txt"),
+			[]string{"viewer", p("/p/a.txt")}},
 	}
 	for _, c := range cases {
 		orig := append([]string(nil), c.argv...)

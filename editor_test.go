@@ -41,7 +41,21 @@ func TestEditorArgs(t *testing.T) {
 		{"exact path with spaces kept whole", spacedEditor, []string{spacedEditor}},
 		{"two words", "nvim -p", []string{nvim, "-p"}},
 		{"quoted executable then flag", `"emacs" -nw`, []string{emacs, "-nw"}},
-		{"quoted path with spaces and flag", `'` + spacedEditor + `' -f`, []string{spacedEditor, "-f"}},
+	}
+	if runtime.GOOS != "windows" {
+		// POSIX quoting; Windows splits as its command lines do
+		// (editor_split_windows_test.go).
+		tests = append(tests, struct {
+			name    string
+			setting string
+			want    []string
+		}{"quoted path with spaces and flag", `'` + spacedEditor + `' -f`, []string{spacedEditor, "-f"}})
+	} else {
+		tests = append(tests, struct {
+			name    string
+			setting string
+			want    []string
+		}{"quoted path with spaces and flag", `"` + spacedEditor + `" -f`, []string{spacedEditor, "-f"}})
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -69,9 +83,16 @@ func TestEditorArgs(t *testing.T) {
 		{"too long", strings.Repeat("x", 8193), "8192"},
 		{"65 words", words + " nvim", "64 words"},
 		{"NUL", "nvim\x00 -p", "NUL"},
-		{"unterminated quote", `"nvim -p`, "invalid editor setting"},
 		{"quoted pair is one word", `"emacs -nw"`, "terminal editor"},
 		{"no such editor", "ntopenwith-no-such-editor-123456", "terminal editor"},
+	}
+	if runtime.GOOS != "windows" {
+		// Windows command lines end an open quote at the end of the line.
+		failures = append(failures, struct {
+			name    string
+			setting string
+			contain string
+		}{"unterminated quote", `"nvim -p`, "invalid editor setting"})
 	}
 	for _, tt := range failures {
 		t.Run(tt.name, func(t *testing.T) {
