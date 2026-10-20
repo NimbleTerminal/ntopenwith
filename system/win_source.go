@@ -34,6 +34,9 @@ func newWinSource(reg winassoc.Registry, friendly func(progID, verb string) stri
 type winChoice struct {
 	app     ntopenwith.App
 	handler winassoc.Handler
+	// exe is the program a win:app: handler resolved to on PATH, or "" when
+	// it was not found there.
+	exe string
 }
 
 // offer reads what the registry offers for t and v, in the order to show:
@@ -68,7 +71,19 @@ func (s *winSource) offer(t ntopenwith.Target, v ntopenwith.Verb) []winChoice {
 		if hasDef && h.ID == def.ID {
 			continue
 		}
-		out = append(out, winChoice{app: ntopenwith.App{ID: h.ID}, handler: h})
+		c := winChoice{app: ntopenwith.App{ID: h.ID}, handler: h}
+		if h.Exe != "" {
+			// Only an .exe runs without a shell: a name PATH resolves to
+			// anything else, such as a batch file, is not offered.
+			exe, err := s.lookPath(h.Exe)
+			if err == nil && !winassoc.IsExe(exe) {
+				continue
+			}
+			if err == nil {
+				c.exe = exe
+			}
+		}
+		out = append(out, c)
 	}
 	return out
 }
@@ -136,11 +151,10 @@ func (s *winSource) Launch(ctx context.Context, t ntopenwith.Target, v ntopenwit
 	case app.ID == ntopenwith.SystemID:
 		return nil, s.shell(path, string(ntopenwith.Open), "")
 	case h.Exe != "":
-		exe, err := s.lookPath(h.Exe)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", h.Exe, err)
+		if offered[i].exe == "" {
+			return nil, fmt.Errorf("%s: not found on PATH", h.Exe)
 		}
-		return nil, start([]string{exe, path})
+		return nil, start([]string{offered[i].exe, path})
 	}
 	return nil, s.shell(path, string(v), h.ProgID)
 }

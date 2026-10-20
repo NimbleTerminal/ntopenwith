@@ -90,11 +90,17 @@ func newWinFixture(t *testing.T) *winFixture {
 			`HKCU\Software\Classes\.png\OpenWithProgids`: {{"Paint.Picture", ""}, {"Viewer.PNG", ""}},
 			`HKCR\.png`:                             {{"", "pngfile"}},
 			userExts + `.png\UserChoice`:            {{"ProgId", "Viewer.PNG"}},
-			userExts + `.png\OpenWithList`:          {{"a", "gimp.exe"}, {"b", `C:\evil\x.exe`}, {"MRUList", "ab"}},
+			userExts + `.png\OpenWithList`:          {{"a", "gimp.exe"}, {"b", `C:\evil\x.exe`}, {"c", "foo.cmd"}, {"d", "foo"}, {"e", "tool.exe"}, {"MRUList", "abcde"}},
 			`HKCR\Paint.Picture\shell\edit\command`: {{"", "paint.exe %1"}},
 			`HKCR\Viewer.PNG\shell\open\command`:    {{"", "viewer.exe %1"}},
 		}},
-		path: map[string]string{"gimp.exe": `C:\Program Files\GIMP\gimp.exe`},
+		path: map[string]string{
+			"gimp.exe": `C:\Program Files\GIMP\gimp.exe`,
+			"foo.cmd":  `C:\bin\foo.cmd`,
+			"foo":      `C:\bin\foo.bat`,
+			// A name that PATH resolves to a batch file is never offered.
+			"tool.exe": `C:\bin\tool.exe.bat`,
+		},
 	}
 	f.png = filepath.Join(t.TempDir(), "x.png")
 	if err := os.WriteFile(f.png, []byte("png"), 0o644); err != nil {
@@ -187,11 +193,21 @@ func TestWindowsSourceWithFake(t *testing.T) {
 		{ntopenwith.Edit, "win:Viewer.PNG"},
 		{ntopenwith.Edit, "win:app:gimp.exe"},
 		{ntopenwith.Open, `win:app:C:\evil\x.exe`},
+		{ntopenwith.Open, "win:app:foo.cmd"},
+		{ntopenwith.Open, "win:app:foo"},
+		{ntopenwith.Open, "win:app:tool.exe"},
 		{ntopenwith.Open, "win:Gone.File"},
 	} {
 		if _, err := f.src.Launch(ctx, tgt, c.v, ntopenwith.App{ID: c.id}); !errors.Is(err, ntopenwith.ErrNotOffered) {
 			t.Errorf("Launch %s %s: err = %v, want ErrNotOffered", c.v, c.id, err)
 		}
+	}
+
+	// Launch looks the program up again: one that now resolves to a batch
+	// file is refused although the listing offered it.
+	f.path["gimp.exe"] = `C:\evil\gimp.exe.bat`
+	if _, err := f.src.Launch(ctx, tgt, ntopenwith.Open, ntopenwith.App{ID: "win:app:gimp.exe"}); !errors.Is(err, ntopenwith.ErrNotOffered) {
+		t.Errorf("Launch of a program resolving to a batch file: err = %v, want ErrNotOffered", err)
 	}
 
 	// A program no longer on PATH is not started.

@@ -60,9 +60,16 @@ func canEdit(r Registry, progID string) bool {
 	return false
 }
 
-// bareExe reports whether name is a program's file name alone, not a path.
+// bareExe reports whether name is a program's file name alone, not a path,
+// and names an .exe: a batch file (.bat, .cmd, or a bare name that PATHEXT
+// could resolve to one) would run through cmd.exe, which is a shell.
 func bareExe(name string) bool {
-	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, `\/:`+"\x00")
+	return IsExe(name) && !strings.ContainsAny(name, `\/:`+"\x00")
+}
+
+// IsExe reports whether name ends in ".exe", whatever its case.
+func IsExe(name string) bool {
+	return len(name) > len(".exe") && strings.EqualFold(name[len(name)-len(".exe"):], ".exe")
 }
 
 // Handlers lists the handlers of ext (case is ignored) for verb "open" or

@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"nimbleterminal.dev/ntopenwith"
@@ -25,8 +27,20 @@ func TestWindowsSourceReal(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", v, err)
 		}
-		if v == ntopenwith.Open && len(apps) == 0 {
-			t.Error("no app opens a .txt")
+		if v == ntopenwith.Open {
+			// "system" is always offered, so ask for the registry's own:
+			// every Windows associates .txt with Notepad (txtfile).
+			i := slices.IndexFunc(apps, func(a ntopenwith.App) bool { return strings.HasPrefix(a.ID, "win:") })
+			if i < 0 {
+				t.Errorf("no registry handler opens a .txt: %v", ids(apps))
+			}
+			// The default is a ProgID, named by FriendlyName, not by its ID.
+			d := slices.IndexFunc(apps, func(a ntopenwith.App) bool { return a.Default && strings.HasPrefix(a.ID, "win:") })
+			if d < 0 {
+				t.Errorf("no registry default for .txt: %+v", apps)
+			} else if progID := strings.TrimPrefix(apps[d].ID, "win:"); apps[d].Name == progID {
+				t.Errorf("default %s is named by its ProgID %q, not a friendly name", apps[d].ID, apps[d].Name)
+			}
 		}
 		for _, a := range apps {
 			if a.ID == "" || a.Name == "" {
