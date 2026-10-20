@@ -186,7 +186,11 @@ func TestDarwinSourceExtAsksForTheType(t *testing.T) {
 	}
 }
 
-func TestDarwinSourceCachesByType(t *testing.T) {
+// A file's listing is its own: Launch Services honors a per-file "Open
+// with" choice, so two PNGs are asked about separately. Asking again about
+// the same file within the lifetime is answered from the cache, and a
+// question about a type alone is shared by type.
+func TestDarwinSourceCachesByPath(t *testing.T) {
 	src, ls, png := macFixture(t)
 	ctx := context.Background()
 	other := filepath.Join(filepath.Dir(png), "y.png")
@@ -195,15 +199,25 @@ func TestDarwinSourceCachesByType(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if want := []string{"default-file:" + png, "file:" + png, "default-file:" + other, "file:" + other}; !reflect.DeepEqual(ls.calls, want) {
+		t.Fatalf("asked %v, want %v", ls.calls, want)
+	}
+	ls.calls = nil
+	for range 2 {
+		if _, err := src.Apps(ctx, ntopenwith.Target{Ext: ".png"}, ntopenwith.Open); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if len(ls.calls) != 2 {
 		t.Fatalf("asked %d times for one type, want 2 calls: %v", len(ls.calls), ls.calls)
 	}
 	src.listings.clear()
+	ls.calls = nil
 	if _, err := src.Apps(ctx, ntopenwith.Target{Path: png}, ntopenwith.Open); err != nil {
 		t.Fatal(err)
 	}
-	if len(ls.calls) != 4 {
-		t.Fatalf("after clear: %d calls, want 4", len(ls.calls))
+	if len(ls.calls) != 2 {
+		t.Fatalf("after clear: %d calls, want 2", len(ls.calls))
 	}
 
 	// Files without an extension are kept apart by path.

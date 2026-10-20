@@ -28,13 +28,14 @@ type macChoice struct {
 	bundle launchservices.Bundle
 }
 
-// macKey is the cache key for t: its type, or for a file without an
-// extension its path, which Launch Services may judge by more than the name.
+// macKey is the cache key for t. A file is asked about by its path, and
+// Launch Services honors a per-file "Open with" choice, so a file's listing
+// is its own; only a question about a type alone is shared by type.
 func macKey(t ntopenwith.Target) string {
-	if k := t.Type(); k != "" {
-		return k
+	if t.Path != "" {
+		return "path:" + t.Path
 	}
-	return "path:" + t.Path
+	return t.Type()
 }
 
 // offer asks Launch Services what it offers for t and v, in the order to
