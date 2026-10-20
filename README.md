@@ -23,6 +23,10 @@ OS, and under `js/wasm` it lists nothing and every launch returns
 go get nimbleterminal.dev/ntopenwith
 ```
 
+**[Try it in your browser](https://nimbleterminal.github.io/ntopenwith/)**:
+[`examples/choose`](#choose) over a pretend home folder, with the apps a Mac
+reported for it. Nothing launches there.
+
 To try it on your machine, from a clone:
 
 ```sh
@@ -254,6 +258,34 @@ edit:
     mac:com.microsoft.VSCode  Code
     vim  Vim  (terminal)
 ```
+
+## `choose`
+
+[`examples/choose`](examples/choose) is a whole host: a
+[Bubble Tea](https://github.com/charmbracelet/bubbletea) program that chooses a
+file with [ntfilepicker](https://github.com/NimbleTerminal/ntfilepicker) and
+opens or edits it, with the menus a program such as gloss draws. It lives in its
+own module, `examples`, so the library needs no Bubble Tea.
+
+```sh
+go -C examples run ./choose            # your files, from your home folder
+go -C examples run ./choose -pretend   # a made-up home folder; nothing launches
+go -C examples run ./choose -prefs ~/.config/choose.json   # keep saved defaults
+```
+
+| Key | Does |
+| --- | --- |
+| Enter | open the file with the app `Resolve` picks |
+| Ctrl+E | edit it; with no default editor, the Edit chooser opens |
+| Alt+Enter, Alt+E | the "Open with" and "Edit with" choosers |
+| in a chooser: ↑/↓ (j/k), Enter, d, Esc | move, launch, save the default for the file's type (on System default: clear it), close |
+
+Letters belong to the file chooser's filter, so the file list has no letter
+keys. A terminal editor runs in the terminal through `tea.ExecProcess`. The
+native source is the system's, with QuickTime Player hidden from editing images,
+then `$VISUAL`/`$EDITOR` and the common terminal editors. With `-pretend` (and
+always in the browser) the apps come from a table in `pretend.go`, behind the
+same `Layered` correction, and the status line says what would have opened.
 
 ## Developing
 

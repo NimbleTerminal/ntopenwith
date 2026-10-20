@@ -25,14 +25,26 @@ CHANGELOG consistent with the code. Written for gloss to move onto
   `internal/launchservices`: Launch Services through purego, behind an
   interface. `internal/winassoc`: the registry and `ShellExecuteExW`, behind an
   interface.
-- `examples/ntopen`: the example command, in the root module. It takes its
-  source from a package variable so the test can inject a fake.
-- `internal/tools/notices`: `THIRD_PARTY_NOTICES.md` for every OS.
+- `examples`: a module of its own (`nimbleterminal.dev/ntopenwith/examples`,
+  `replace` of the library to `..`) so that Bubble Tea, ntfilepicker and booba
+  stay out of the root `go.mod`. `examples/ntopen` is the command-line example;
+  it takes its source from a package variable so the test can inject a fake.
+  `examples/choose` is a Bubble Tea host on ntfilepicker (Enter, Ctrl+E,
+  Alt+Enter, Alt+E, a chooser with `d` for the default), native or `-pretend`
+  (a made-up home folder and a pretend `Source` in `pretend.go`; always under
+  js/wasm). `examples/internal/demorun` publishes keys to booba's action bar.
+- `web/`, `scripts/`, `wasm.work`: the browser demo of `choose`, as in
+  `../ntfilepicker`. `wasm.work` holds the js/wasm forks of Bubble Tea and the
+  clipboard; only `index.html`, `site.js` and `site.css` in `web/` are
+  sources, the rest is generated and ignored. `.github/workflows/pages.yml`
+  publishes it.
+- `internal/tools/notices`: `THIRD_PARTY_NOTICES.md` for every OS: the
+  library's dependencies, then those the examples and the WASM build add.
 
 ## Global constraints
 
 - Root `go.mod` requires only purego, `x/sys` and shlex; the rest is the
-  standard library. `CGO_ENABLED=0` must build on every OS. Under `js/wasm`
+  standard library. Anything else belongs to the `examples` module. `CGO_ENABLED=0` must build on every OS. Under `js/wasm`
   everything builds, `System()` lists nothing, and every launch returns
   `ErrUnsupported`.
 - No user interface and no Bubble Tea. A terminal app comes back as an
@@ -77,6 +89,8 @@ CHANGELOG consistent with the code. Written for gloss to move onto
 
 `task ci` before finishing: gofmt, `go mod tidy -diff`, race tests, vet, the
 cross-platform builds without CGO (windows, linux, darwin, freebsd, js/wasm), the
-example, the notices check, staticcheck. If staticcheck fails on a Go toolchain
+examples, the WASM site (`build-wasm-site`, then `check-site`: syntax, assets,
+and the demo run under Node), the notices check, staticcheck; each Go step in
+both modules. Never commit the generated files in `web/`. If staticcheck fails on a Go toolchain
 mismatch, rerun it with `GOTOOLCHAIN` set to the version in `go.mod`. CI runs it
 on macOS, Ubuntu and Windows.

@@ -14,13 +14,17 @@ task test             # go test ./...
 task test-race        # with the race detector
 task vet
 task cross            # vet/build for windows, linux, darwin, freebsd, js/wasm, CGO off
-task build            # bin/ntopen, the example
+task build            # bin/ntopen and bin/choose, the examples
+task choose -- -pretend   # run examples/choose
 task notices          # rewrite THIRD_PARTY_NOTICES.md
 task ci               # the gate
 ```
 
+Each Go task runs in both modules: the library at the root, and `examples`.
+
 `task ci` runs: gofmt check, `go mod tidy -diff`, race tests, vet, the
-cross-platform builds, the example build, the notices check, and staticcheck
+cross-platform builds, the examples, the browser site and its checks, the
+notices check, and staticcheck
 (fetched at its latest version, which may need the newest Go toolchain; if it
 fails on a mismatch, rerun it with `GOTOOLCHAIN` set to the `go.mod` version).
 GitHub Actions runs `task ci` on `ubuntu-latest`, `macos-latest` and
@@ -41,8 +45,12 @@ GitHub Actions runs `task ci` on `ubuntu-latest`, `macos-latest` and
   by their file names) ask the machine and assert only what every runner has:
   that a `.txt` has an Open handler and that queries return without error.
   Linux has no such test yet: its source is tested against the fixture trees.
-- **The example** is tested through `run` with a fake source injected through
-  the `source` variable.
+- **The examples.** `ntopen` is tested through `run` with a fake source
+  injected through the `source` variable. `choose` is tested by driving its
+  model with key messages over the pretend home folder and source
+  (`examples/choose/model_test.go`), running each command and feeding its
+  message back as Bubble Tea would; the tests read the status line and the
+  chooser's state.
 
 ### Trying each OS
 
@@ -61,6 +69,35 @@ and `XDG_CURRENT_DESKTOP` change what it sees, as they change a file manager;
 point them at a fixture tree to reproduce a report. `system.Refresh()` is not
 needed between runs of a command, only inside one process, which keeps answers
 five seconds.
+
+## The examples module and the browser demo
+
+`examples/` is a module of its own, `nimbleterminal.dev/ntopenwith/examples`,
+with `replace nimbleterminal.dev/ntopenwith => ..`, so that Bubble Tea,
+ntfilepicker and booba stay out of the library's `go.mod`. It holds `ntopen`,
+`choose`, and `internal/demorun`, which publishes the keys to a browser host's
+action bar. booba's asset exporter is a `tool` of the module.
+
+The browser demo is `examples/choose -pretend` built for js/wasm and run by
+[booba](https://github.com/NimbleMarkets/go-booba) over ghostty-web. Bubble Tea
+and the clipboard need forks under js/wasm; `wasm.work` (with `wasm.work.sum`)
+replaces them for the WASM build only, and native builds use `go.mod`.
+
+```sh
+task build-wasm        # examples/choose → web/demos/choose.wasm (GOWORK=wasm.work)
+task build-wasm-site   # that, plus booba's runtime, LICENSE and the notices, into web/
+task check-site        # node --check, scripts/check-site.mjs, scripts/smoke-demo.mjs
+task serve-wasm-site   # http://localhost:8000/ntopenwith/, as GitHub Pages serves it
+task clean-wasm-site
+```
+
+`web/index.html`, `site.js` and `site.css` are the page; everything else in
+`web/` is generated and ignored by git. `smoke-demo.mjs` runs the real
+`choose.wasm` under Node through booba's bridge (no browser): it types, opens
+a file, uses the "Open with" chooser, saves a default, resizes and quits. The
+terminal is sent only what changed on screen, so it checks for text that is
+new at each step. `.github/workflows/pages.yml` runs `task ci` on `main` and
+publishes `web/` to <https://nimbleterminal.github.io/ntopenwith/>.
 
 ## purego on macOS
 
@@ -101,5 +138,6 @@ line and never starts the program itself, so a batch file cannot be reached.
 
 ## Releasing
 
-Update CHANGELOG.md, run `task ci`, and tag `vX.Y.Z`. The tag is pushed by a
+Update CHANGELOG.md, run `task ci`, and tag `vX.Y.Z`. The examples module
+replaces the library with `..`, so it builds against the tree, not a tag. The tag is pushed by a
 person; nothing here publishes.

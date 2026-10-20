@@ -22,3 +22,8 @@ First version.
   file; `Choices`, `AllApps`, `SetDefault`, `SetHidden`.
 * Add `Reveal`, `Command` and `Start`.
 * Add `examples/ntopen`, a command that lists, opens and edits with the above.
+* Add `examples/choose`, a Bubble Tea host on ntfilepicker that opens and edits
+  files and shows the "Open with" and "Edit with" choosers, with a `-pretend`
+  mode over a made-up home folder. The examples are now a module of their own.
+* Add a browser demo of `examples/choose`, at
+  <https://nimbleterminal.github.io/ntopenwith/>.
