@@ -345,3 +345,26 @@ func TestWindowsSourceDirectoryAndNoExtension(t *testing.T) {
 		t.Errorf("shell ran %v, want %v", f.shelled, want)
 	}
 }
+
+// The registry ignores case, so a ProgID spelled two ways is one app.
+func TestWindowsSourceProgIDCase(t *testing.T) {
+	f := newWinFixture(t)
+	ctx := context.Background()
+	tgt := ntopenwith.Target{Path: f.png}
+	f.reg.keys[`HKCU\Software\Classes\.png\OpenWithProgids`] = [][2]string{{"Paint.Picture", ""}, {"viewer.png", ""}}
+	apps, err := f.src.Apps(ctx, tgt, ntopenwith.Open)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := ids(apps), []string{"win:Viewer.PNG", "system", "win:Paint.Picture", "win:app:gimp.exe"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Open ids = %v, want %v", got, want)
+	}
+	// A saved ID in another case still launches the app, with the class as
+	// the registry lists it.
+	if _, err := f.src.Launch(ctx, tgt, ntopenwith.Open, ntopenwith.App{ID: "win:VIEWER.png"}); err != nil {
+		t.Fatal(err)
+	}
+	if want := [][]string{{f.png, "open", "Viewer.PNG"}}; !reflect.DeepEqual(f.shelled, want) {
+		t.Errorf("shell ran %v, want %v", f.shelled, want)
+	}
+}
