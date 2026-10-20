@@ -197,7 +197,7 @@ cannot make it safe.)
   a PNG or a spreadsheet is not handed to vim.
 - **XDG `Exec` lines** are refused, not guessed at, when a file code (`%f %F %u
   %U`) sits inside quotes, when there is more than one file code, or when a field
-  code is the program itself.
+  code is the program itself; such an entry is not listed at all.
 - **Windows** offers only `.exe` programs from `OpenWithList`, and only those
   whose `Applications\<exe>` class registers the verb. A ProgID's or a
   program's registered command is run by the shell through `ShellExecuteExW`,

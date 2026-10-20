@@ -71,11 +71,20 @@ func mimeOf(ix *xdg.Index, t ntopenwith.Target) string {
 	return ix.TypeOf(filepath.Base(t.Path))
 }
 
+// launchable reports whether e's Exec line is one Launch would run: an entry
+// whose line is refused (a quoted file code, an unknown field code) is not
+// offered at all.
+func launchable(e xdg.Entry) bool {
+	_, err := xdg.ExpandExec(e, "/x")
+	return err == nil
+}
+
 // offer lists what ix offers for t and v, in the order to show.
 func offer(ix *xdg.Index, t ntopenwith.Target, v ntopenwith.Verb) []choice {
 	mime := mimeOf(ix, t)
 	def, hasDef := ix.Default(mime)
-	handlers := ix.Handlers(mime)
+	hasDef = hasDef && launchable(def)
+	handlers := slices.DeleteFunc(ix.Handlers(mime), func(e xdg.Entry) bool { return !launchable(e) })
 
 	entry := func(e xdg.Entry) choice {
 		return choice{

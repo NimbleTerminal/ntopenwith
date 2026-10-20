@@ -34,6 +34,7 @@ func fixture(t *testing.T, mimeapps string) (src *xdgSource, apps, png string) {
 	write("data/applications/tool.desktop", "[Desktop Entry]\nType=Application\nName=Tool\nExec=tool %f\nMimeType=image/png;\nCategories=Utility;\n")
 	write("data/applications/nano.desktop", "[Desktop Entry]\nType=Application\nName=Nano\nExec=nano %f\nTerminal=true\nMimeType=text/plain;\nCategories=TextEditor;\n")
 	write("data/applications/broken.desktop", "[Desktop Entry]\nType=Application\nName=Broken\nExec=broken %q\nMimeType=image/png;\nCategories=Graphics;\n")
+	write("data/applications/quoted.desktop", "[Desktop Entry]\nType=Application\nName=Quoted\nExec=quoted \"%f\"\nMimeType=image/png;\nCategories=Graphics;\n")
 	write("config/mimeapps.list", mimeapps)
 	write("files/x.png", "png")
 	write("files/notes.txt", "text")
@@ -71,9 +72,10 @@ func TestOpenListsTheDefaultFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The default, then the system default, then the other handlers; the
-	// broken entry is still listed (it fails when launched, not here).
-	want := []string{"xdg:paint.desktop", "system", "xdg:broken.desktop", "xdg:tool.desktop", "xdg:viewer.desktop"}
+	// The default, then the system default, then the other handlers; an
+	// entry whose Exec line would be refused at launch (an unknown field
+	// code, a quoted file code) is not listed.
+	want := []string{"xdg:paint.desktop", "system", "xdg:tool.desktop", "xdg:viewer.desktop"}
 	got := ids(apps)
 	slices.Sort(got[2:])
 	if !reflect.DeepEqual(got, want) {
@@ -129,7 +131,7 @@ func TestEditListsOnlyCategoryMatchesAndNoDefault(t *testing.T) {
 	}
 	got := ids(apps)
 	slices.Sort(got)
-	if want := []string{"xdg:broken.desktop", "xdg:paint.desktop", "xdg:viewer.desktop"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"xdg:paint.desktop", "xdg:viewer.desktop"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("ids = %v, want %v", got, want)
 	}
 	for _, a := range apps {
@@ -216,8 +218,10 @@ func TestLaunchRefusesWhatIsNoLongerOffered(t *testing.T) {
 func TestLaunchRefusesABadExecLineAndABadPath(t *testing.T) {
 	src, _, png := fixture(t, "")
 	got := capture(t)
-	if _, err := src.Launch(context.Background(), ntopenwith.Target{Path: png}, ntopenwith.Open, ntopenwith.App{ID: "xdg:broken.desktop"}); err == nil {
-		t.Error("an Exec line with an unknown field code launched")
+	for _, id := range []string{"xdg:broken.desktop", "xdg:quoted.desktop"} {
+		if _, err := src.Launch(context.Background(), ntopenwith.Target{Path: png}, ntopenwith.Open, ntopenwith.App{ID: id}); !errors.Is(err, ntopenwith.ErrNotOffered) {
+			t.Errorf("%s: err = %v, want ErrNotOffered", id, err)
+		}
 	}
 	missing := filepath.Join(filepath.Dir(png), "missing.png")
 	if _, err := src.Launch(context.Background(), ntopenwith.Target{Path: missing}, ntopenwith.Open, ntopenwith.App{ID: "system"}); err == nil {
@@ -285,5 +289,18 @@ func TestADirectoryIsOfferedTheSystemDefault(t *testing.T) {
 	apps, err = src.Apps(context.Background(), ntopenwith.Target{Path: dir, Directory: true}, ntopenwith.Edit)
 	if err != nil || len(apps) != 0 {
 		t.Fatalf("Edit: %v, %v", apps, err)
+	}
+}
+
+// A default whose Exec line would be refused is not offered, so the system
+// default is the default.
+func TestRefusedDefaultLeavesTheSystemDefault(t *testing.T) {
+	src, _, png := fixture(t, "[Default Applications]\nimage/png=quoted.desktop;\n")
+	apps, err := src.Apps(context.Background(), ntopenwith.Target{Path: png}, ntopenwith.Open)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) == 0 || apps[0].ID != "system" || !apps[0].Default || slices.Contains(ids(apps), "xdg:quoted.desktop") {
+		t.Fatalf("apps = %+v, want the system default first and marked, and no quoted.desktop", apps)
 	}
 }
