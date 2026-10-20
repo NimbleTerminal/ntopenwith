@@ -62,15 +62,15 @@ It fails, even if it works, if:
   or a file name can make it run a program the user did not pick from the
   OS's own list or the developer's compiled list;
 - it needs CGO, or a helper process on every query;
+- a developer who wants a fixed list must still let it read the system;
+- Edit on a binary file (an image, a PDF, a spreadsheet) ever hands the
+  file to `$EDITOR`.
 
 (The OS's own list includes what the platform's standards say shapes it:
 `PATH` for finding programs, and on XDG systems `XDG_DATA_HOME`,
 `XDG_DATA_DIRS`, `XDG_CONFIG_HOME`, `XDG_CONFIG_DIRS` and
 `XDG_CURRENT_DESKTOP`, as every file manager reads them. *Builder's-check
 call.*)
-- a developer who wants a fixed list must still let it read the system;
-- Edit on a binary file (an image, a PDF, a spreadsheet) ever hands the
-  file to `$EDITOR`.
 
 ## Concepts
 
