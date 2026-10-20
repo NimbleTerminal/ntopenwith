@@ -53,8 +53,13 @@ func Start(argv []string) error {
 	if len(argv) == 0 || argv[0] == "" {
 		return errors.New("invalid command: no program")
 	}
-	cmd := exec.Command(argv[0], argv[1:]...)
-	// Stdin, Stdout and Stderr stay nil: the child gets the null device.
+	return startDetached(exec.Command(argv[0], argv[1:]...))
+}
+
+// startDetached starts cmd in a session (process group) of its own and
+// reaps it in the background. Stdin, Stdout and Stderr stay nil: the child
+// gets the null device.
+func startDetached(cmd *exec.Cmd) error {
 	detach(cmd)
 	if err := startCommand(cmd); err != nil {
 		return err

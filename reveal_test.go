@@ -25,7 +25,8 @@ func wantReveal(file, dir string, isDir bool) []string {
 		if isDir {
 			return []string{"explorer.exe", dir}
 		}
-		return []string{"explorer.exe", "/select," + file}
+		// The path goes in the command line (reveal_windows_test.go).
+		return []string{"explorer.exe"}
 	case "linux", "freebsd", "openbsd", "netbsd":
 		return []string{"xdg-open", dir}
 	}

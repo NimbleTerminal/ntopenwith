@@ -36,7 +36,7 @@ func Reveal(path string) error {
 		if isDir {
 			return Start([]string{"explorer.exe", p})
 		}
-		return Start([]string{"explorer.exe", "/select," + p})
+		return selectInExplorer(p)
 	}
 	// XDG desktops have no "select this file": open the folder holding it.
 	if !isDir {
