@@ -34,7 +34,7 @@ type ListApp struct {
 	Bundle string
 	// Find names what must exist for the app to be offered: programs found on
 	// the PATH, or bundles ending ".app" found in the Applications folders.
-	// By default it is Command[0], or else Bundle.
+	// By default it is Bundle on darwin, else Command[0], else Bundle.
 	Find []string
 	// Default lists the verbs for which the app is the default.
 	Default []Verb
@@ -91,6 +91,8 @@ func (a *ListApp) available() bool {
 	find := a.Find
 	if len(find) == 0 {
 		switch {
+		case a.Bundle != "" && hostOS == "darwin":
+			find = []string{a.Bundle}
 		case len(a.Command) > 0:
 			find = []string{a.Command[0]}
 		case a.Bundle != "":

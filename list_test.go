@@ -301,3 +301,49 @@ func TestTerminalEditors(t *testing.T) {
 		t.Errorf("Name = %q", apps[0].Name)
 	}
 }
+
+func TestListBundleAndCommandOnDarwin(t *testing.T) {
+	oldOS := hostOS
+	t.Cleanup(func() { hostOS = oldOS })
+	started := captureStart(t)
+	path := tempFile(t, "a.png")
+	tgt := Target{Path: path}
+	ctx := context.Background()
+	src := List(ListApp{ID: "p", Name: "P", Verbs: []Verb{Open}, Bundle: "Preview.app", Command: []string{"viewer"}})
+
+	bundles := t.TempDir()
+	stubBundleDirs(t, bundles)
+
+	// On darwin the bundle is what must exist, not the program.
+	hostOS = "darwin"
+	stubLookPath(t) // no program
+	if err := os.Mkdir(filepath.Join(bundles, "Preview.app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	apps, _ := src.Apps(ctx, tgt, Open)
+	if got, want := ids(apps), []string{"p"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("bundle present, program missing: %q, want %q", got, want)
+	}
+	if _, err := src.Launch(ctx, tgt, Open, apps[0]); err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	if want := []string{"open", "-a", filepath.Join(bundles, "Preview.app"), path}; len(*started) != 1 || !reflect.DeepEqual((*started)[0], want) {
+		t.Errorf("started %q, want %q", *started, want)
+	}
+
+	// Program present, bundle missing: not offered on darwin.
+	stubLookPath(t, "viewer")
+	stubBundleDirs(t, t.TempDir())
+	if apps, _ := src.Apps(ctx, tgt, Open); len(apps) != 0 {
+		t.Errorf("bundle missing: offered %+v", apps)
+	}
+	if _, err := src.Launch(ctx, tgt, Open, App{ID: "p"}); !errors.Is(err, ErrNotOffered) {
+		t.Errorf("bundle missing: Launch err = %v", err)
+	}
+
+	// Elsewhere the program is what must exist.
+	hostOS = "linux"
+	if apps, _ := src.Apps(ctx, tgt, Open); len(apps) != 1 {
+		t.Errorf("linux, program present: %+v", apps)
+	}
+}

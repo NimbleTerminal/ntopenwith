@@ -218,3 +218,50 @@ func TestAliasCanonical(t *testing.T) {
 		t.Errorf("launched %q, want %q", target.launched, want)
 	}
 }
+
+// wrapper is a user's Source around another, forwarding both calls.
+type wrapper struct{ Source }
+
+func TestLayeredWrappedLaunches(t *testing.T) {
+	ctx := context.Background()
+	for name, build := range map[string]func(a Source) Source{
+		"Override":       func(a Source) Source { return Layered(Override(Layered(a))) },
+		"user wrapper":   func(a Source) Source { return Layered(wrapper{Layered(a)}) },
+		"double nesting": func(a Source) Source { return Layered(Override(Layered(wrapper{Layered(a)}))) },
+	} {
+		a := &fakeSource{apps: []App{{ID: "a1", Name: "A1", Default: true}}}
+		l := build(a)
+		apps, err := l.Apps(ctx, layerTarget, Open)
+		if err != nil || len(apps) != 1 {
+			t.Fatalf("%s: Apps = %+v, %v", name, apps, err)
+		}
+		if _, err := l.Launch(ctx, layerTarget, Open, apps[0]); err != nil {
+			t.Fatalf("%s: Launch: %v", name, err)
+		}
+		if !reflect.DeepEqual(a.launched, []string{"a1"}) {
+			t.Errorf("%s: launched %q", name, a.launched)
+		}
+	}
+}
+
+func TestLayeredIgnoresStaleApp(t *testing.T) {
+	ctx := context.Background()
+	a := &fakeSource{apps: []App{{ID: "a1", Name: "A1"}}}
+	apps, _ := Layered(a).Apps(ctx, layerTarget, Open)
+	if len(apps) != 1 {
+		t.Fatalf("apps = %+v", apps)
+	}
+	hidden := Layered(a, Hide("a1"))
+	if _, err := hidden.Launch(ctx, layerTarget, Open, apps[0]); !errors.Is(err, ErrNotOffered) {
+		t.Errorf("stale app through Hide: %v, want ErrNotOffered", err)
+	}
+	// An App from another Layered whose sources this one lacks.
+	b := &fakeSource{apps: []App{{ID: "b1", Name: "B1"}}}
+	other, _ := Layered(b).Apps(ctx, layerTarget, Open)
+	if _, err := Layered(a).Launch(ctx, layerTarget, Open, other[0]); !errors.Is(err, ErrNotOffered) {
+		t.Errorf("foreign app: %v, want ErrNotOffered", err)
+	}
+	if len(a.launched) != 0 || len(b.launched) != 0 {
+		t.Errorf("launched a %q, b %q", a.launched, b.launched)
+	}
+}

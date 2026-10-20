@@ -92,9 +92,10 @@ func (alias) Launch(context.Context, Target, Verb, App) (*exec.Cmd, error) {
 // [Alias] are applied in the order given. The result lists the default,
 // then the [Rank] IDs, then the rest in source order with terminal apps last.
 //
-// Launch goes to the source that offered the app; an App without one goes to
-// the first source that offers its ID. An error from a source is returned only
-// when no source answered.
+// Launch looks the app's ID up in what the Layered offers now, so a hidden
+// app, or one it does not offer, is [ErrNotOffered], and goes to the source
+// that offered it; an App's own source is ignored. An error from a source is
+// returned only when no source answered.
 func Layered(sources ...Source) Source {
 	l := &layered{aliases: map[string]string{}}
 	for _, s := range sources {
@@ -212,18 +213,16 @@ func (l *layered) order(apps []App, defaultID string) []App {
 }
 
 func (l *layered) Launch(ctx context.Context, t Target, v Verb, app App) (*exec.Cmd, error) {
-	if canon := l.Canonical(app.ID); canon != app.ID {
-		app = App{ID: canon}
-	}
-	if app.from != nil && app.from != Source(l) {
-		return app.from.Launch(ctx, t, v, app)
-	}
+	// An incoming App's source is never trusted: it may come from another
+	// Layered, or from before a correction. Only what this Layered offers now
+	// is launched, through the source it recorded for that row.
+	id := l.Canonical(app.ID)
 	apps, err := l.Apps(ctx, t, v)
 	if err != nil {
 		return nil, err
 	}
-	i := slices.IndexFunc(apps, func(a App) bool { return a.ID == app.ID })
-	if i < 0 || apps[i].from == nil || apps[i].from == Source(l) {
+	i := slices.IndexFunc(apps, func(a App) bool { return a.ID == id })
+	if i < 0 || apps[i].from == nil {
 		return nil, ErrNotOffered
 	}
 	return apps[i].from.Launch(ctx, t, v, apps[i])
