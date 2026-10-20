@@ -26,10 +26,14 @@ jobs:
             go.sum
             examples/go.sum
             wasm.work.sum
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
       - name: Install Task
         uses: go-task/setup-task@v2
       - name: Check, test, and build
         run: task ci
+      - uses: actions/setup-node@v6
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          node-version: '24'
+      - name: Build and check the WASM demo site
+        if: matrix.os == 'ubuntu-latest'
+        run: task ci-site

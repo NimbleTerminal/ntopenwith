@@ -30,10 +30,12 @@ jobs:
           node-version: '24'
       - name: Install Task
         uses: go-task/setup-task@v2
-      # Validate the exact revision being deployed, including manual runs.
-      # task ci also builds the WASM site; only upload it if all checks pass.
-      - name: Run CI checks and build site
+      # Validate the exact revision being deployed, including manual runs,
+      # and upload the site only if all checks pass.
+      - name: Run CI checks
         run: task ci
+      - name: Build and check the site
+        run: task ci-site
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

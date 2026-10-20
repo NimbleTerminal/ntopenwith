@@ -23,12 +23,12 @@ task ci               # the gate
 Each Go task runs in both modules: the library at the root, and `examples`.
 
 `task ci` runs: gofmt check, `go mod tidy -diff`, race tests, vet, the
-cross-platform builds, the examples, the browser site and its checks, the
-notices check, and staticcheck
+cross-platform builds, the examples, the notices check, and staticcheck
 (fetched at its latest version, which may need the newest Go toolchain; if it
 fails on a mismatch, rerun it with `GOTOOLCHAIN` set to the `go.mod` version).
 GitHub Actions runs `task ci` on `ubuntu-latest`, `macos-latest` and
-`windows-latest`, so the real-OS tests below run on all three.
+`windows-latest`, so the real-OS tests below run on all three, and `task ci-site`
+on Ubuntu.
 
 ## Testing
 
@@ -87,6 +87,7 @@ replaces them for the WASM build only, and native builds use `go.mod`.
 task build-wasm        # examples/choose → web/demos/choose.wasm (GOWORK=wasm.work)
 task build-wasm-site   # that, plus booba's runtime, LICENSE and the notices, into web/
 task check-site        # node --check, scripts/check-site.mjs, scripts/smoke-demo.mjs
+task ci-site           # build-wasm-site, then check-site (CI: the Ubuntu job only)
 task serve-wasm-site   # http://localhost:8000/ntopenwith/, as GitHub Pages serves it
 task clean-wasm-site
 ```
@@ -94,9 +95,10 @@ task clean-wasm-site
 `web/index.html`, `site.js` and `site.css` are the page; everything else in
 `web/` is generated and ignored by git. `smoke-demo.mjs` runs the real
 `choose.wasm` under Node through booba's bridge (no browser): it types, opens
-a file, uses the "Open with" chooser, saves a default, resizes and quits. The
+a file, uses the "Open with" chooser, Tabs to "Edit with" and back, saves a
+default, resizes and quits. The
 terminal is sent only what changed on screen, so it checks for text that is
-new at each step. `.github/workflows/pages.yml` runs `task ci` on `main` and
+new at each step. `.github/workflows/pages.yml` runs `task ci` and `task ci-site` on `main` and
 publishes `web/` to <https://nimbleterminal.github.io/ntopenwith/>.
 
 ## purego on macOS

@@ -130,6 +130,12 @@ tasks:
       - node scripts/check-site.mjs
       - node scripts/smoke-demo.mjs
 
+  ci-site:
+    desc: 'Build the WASM demo site and check it (CI runs it on Ubuntu only)'
+    cmds:
+      - task: build-wasm-site
+      - task: check-site
+
   serve-wasm-site:
     desc: 'Serve web/ at http://localhost:8000/ntopenwith/ (matches GH Pages prefix)'
     deps:
@@ -161,7 +167,7 @@ tasks:
       - go run ./internal/tools/notices | cmp -s - THIRD_PARTY_NOTICES.md
 
   ci:
-    desc: 'Check formatting, dependencies, tests, vet, platforms, the examples, the site, notices, and staticcheck'
+    desc: 'Check formatting, dependencies, tests, vet, platforms, the examples, notices, and staticcheck'
     cmds:
       - task: fmt-check
       - task: go-tidy-check
@@ -169,7 +175,5 @@ tasks:
       - task: vet
       - task: cross
       - task: build
-      - task: build-wasm-site
-      - task: check-site
       - task: notices-check
       - task: staticcheck
