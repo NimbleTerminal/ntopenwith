@@ -18,7 +18,7 @@ type Canonicalizer interface {
 // sources of a [Layered] offer.
 type correction interface {
 	Source
-	apply([]App) []App
+	apply(apps []App, t Target, v Verb) []App
 }
 
 // override wraps a Source whose default app beats the other sources'.
@@ -28,13 +28,40 @@ type override struct{ Source }
 // default of a [Layered] it is part of. Its apps are listed in order as usual.
 func Override(s Source) Source { return override{s} }
 
-type hide []string
+// hide is a pointer type so that Sources stay comparable.
+type hide struct {
+	verbs []Verb
+	kinds []string
+	ids   []string
+}
 
-// Hide removes the apps with these IDs.
-func Hide(ids ...string) Source { return hide(slices.Clone(ids)) }
+// Hide removes the apps with these IDs, for every verb and type.
+func Hide(ids ...string) Source { return HideFor(nil, nil, ids...) }
 
-func (h hide) apply(apps []App) []App {
-	return slices.DeleteFunc(apps, func(a App) bool { return slices.Contains(h, a.ID) })
+// HideFor removes the apps with these IDs only when the verb is one of verbs
+// (none means both) and the target's Kind or Type is one of kinds (none means
+// every type): HideFor([]Verb{Edit}, []string{".png"}, id) keeps the app for
+// opening a PNG but not for editing one.
+func HideFor(verbs []Verb, kinds []string, ids ...string) Source {
+	return &hide{verbs: slices.Clone(verbs), kinds: slices.Clone(kinds), ids: slices.Clone(ids)}
+}
+
+func (h *hide) applies(t Target, v Verb) bool {
+	if len(h.verbs) > 0 && !slices.Contains(h.verbs, v) {
+		return false
+	}
+	if len(h.kinds) == 0 {
+		return true
+	}
+	return (t.Kind != "" && slices.Contains(h.kinds, t.Kind)) ||
+		(t.Type() != "" && slices.Contains(h.kinds, t.Type()))
+}
+
+func (h *hide) apply(apps []App, t Target, v Verb) []App {
+	if !h.applies(t, v) {
+		return apps
+	}
+	return slices.DeleteFunc(apps, func(a App) bool { return slices.Contains(h.ids, a.ID) })
 }
 
 type rename struct{ id, name string }
@@ -42,7 +69,7 @@ type rename struct{ id, name string }
 // Rename changes the Name of the app with this ID.
 func Rename(id, name string) Source { return rename{id, name} }
 
-func (r rename) apply(apps []App) []App {
+func (r rename) apply(apps []App, _ Target, _ Verb) []App {
 	for i := range apps {
 		if apps[i].ID == r.id {
 			apps[i].Name = r.name
@@ -56,7 +83,7 @@ type rank []string
 // Rank puts the apps with these IDs first, after the default, in this order.
 func Rank(ids ...string) Source { return rank(slices.Clone(ids)) }
 
-func (r rank) apply(apps []App) []App { return apps } // ordering happens last
+func (r rank) apply(apps []App, _ Target, _ Verb) []App { return apps } // ordering happens last
 
 type alias struct{ id, target string }
 
@@ -64,15 +91,15 @@ type alias struct{ id, target string }
 // [Canonicalizer] reports target for it. It lists nothing itself.
 func Alias(id, target string) Source { return alias{id, target} }
 
-func (a alias) apply(apps []App) []App { return apps }
+func (a alias) apply(apps []App, _ Target, _ Verb) []App { return apps }
 
 // The corrections offer no apps and launch nothing.
-func (hide) Apps(context.Context, Target, Verb) ([]App, error)   { return nil, nil }
+func (*hide) Apps(context.Context, Target, Verb) ([]App, error)  { return nil, nil }
 func (rename) Apps(context.Context, Target, Verb) ([]App, error) { return nil, nil }
 func (rank) Apps(context.Context, Target, Verb) ([]App, error)   { return nil, nil }
 func (alias) Apps(context.Context, Target, Verb) ([]App, error)  { return nil, nil }
 
-func (hide) Launch(context.Context, Target, Verb, App) (*exec.Cmd, error) {
+func (*hide) Launch(context.Context, Target, Verb, App) (*exec.Cmd, error) {
 	return nil, ErrNotOffered
 }
 func (rename) Launch(context.Context, Target, Verb, App) (*exec.Cmd, error) {
@@ -88,8 +115,8 @@ func (alias) Launch(context.Context, Target, Verb, App) (*exec.Cmd, error) {
 // Layered combines sources into one. The sources are asked in order and their
 // apps listed in that order; an app whose ID was already listed only gives
 // its Name. The default is the first default any source offers, unless an
-// [Override] source offers one. The corrections [Hide], [Rename], [Rank] and
-// [Alias] are applied in the order given. The result lists the default,
+// [Override] source offers one. The corrections [Hide], [HideFor], [Rename],
+// [Rank] and [Alias] are applied in the order given. The result lists the default,
 // then the [Rank] IDs, then the rest in source order with terminal apps last.
 //
 // Launch looks the app's ID up in what the Layered offers now, so a hidden
@@ -167,7 +194,7 @@ func (l *layered) Apps(ctx context.Context, t Target, v Verb) ([]App, error) {
 		return nil, errors.Join(errs...)
 	}
 	for _, c := range l.corrections {
-		apps = c.apply(apps)
+		apps = c.apply(apps, t, v)
 	}
 	defaultID := firstDefault
 	if overDefault != "" {

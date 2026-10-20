@@ -13,7 +13,7 @@ First version.
   five-second listings.
 * Add `List`, `ListApp`, `TerminalEditor` and `TerminalEditors`: a program's own
   apps, and the editor named by `$VISUAL` or `$EDITOR` (for text only).
-* Add `Layered` with `Hide`, `Rename`, `Rank`, `Alias` and `Override`: one source
+* Add `Layered` with `Hide`, `HideFor`, `Rename`, `Rank`, `Alias` and `Override`: one source
   corrected by another, with old app IDs kept as aliases.
 * Add `Preferences` (IDs only) with a bounded file format, and
   `LoadLegacyPreferences` for gloss's earlier one.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os/exec"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -263,5 +264,63 @@ func TestLayeredIgnoresStaleApp(t *testing.T) {
 	}
 	if len(a.launched) != 0 || len(b.launched) != 0 {
 		t.Errorf("launched a %q, b %q", a.launched, b.launched)
+	}
+}
+
+func TestHideForScopesByVerbAndKind(t *testing.T) {
+	ctx := context.Background()
+	qt := App{ID: "qt", Name: "QuickTime"}
+	src := &fakeSource{apps: []App{{ID: "prev", Name: "Preview", Default: true}, qt}}
+	png := Target{Path: "/x/a.png"}
+	mov := Target{Path: "/x/a.mov"}
+	pdf := Target{Path: "/x/a.pdf", Kind: "pdf"}
+
+	// QuickTime hidden from Edit for images only, matched by type or kind.
+	l := Layered(src, HideFor([]Verb{Edit}, []string{".png", "pdf"}, "qt"))
+	for _, c := range []struct {
+		t      Target
+		v      Verb
+		hidden bool
+	}{
+		{png, Edit, true},
+		{pdf, Edit, true},
+		{png, Open, false},
+		{mov, Edit, false},
+		{mov, Open, false},
+	} {
+		got, err := l.Apps(ctx, c.t, c.v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		has := slices.ContainsFunc(got, func(a App) bool { return a.ID == "qt" })
+		if has == c.hidden {
+			t.Errorf("%s %s: qt listed = %v, want %v", c.t.Path, c.v, has, !c.hidden)
+		}
+		if _, err := l.Launch(ctx, c.t, c.v, qt); c.hidden != errors.Is(err, ErrNotOffered) {
+			t.Errorf("%s %s: Launch err = %v, hidden %v", c.t.Path, c.v, err, c.hidden)
+		}
+	}
+
+	// No verbs means both; no kinds means every type.
+	for _, c := range []struct {
+		h    Source
+		t    Target
+		v    Verb
+		want bool // still listed
+	}{
+		{HideFor(nil, []string{".png"}, "qt"), png, Open, false},
+		{HideFor(nil, []string{".png"}, "qt"), png, Edit, false},
+		{HideFor(nil, []string{".png"}, "qt"), mov, Open, true},
+		{HideFor([]Verb{Open}, nil, "qt"), mov, Open, false},
+		{HideFor([]Verb{Open}, nil, "qt"), mov, Edit, true},
+		{HideFor(nil, nil, "qt"), mov, Edit, false},
+	} {
+		got, err := Layered(src, c.h).Apps(ctx, c.t, c.v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if has := slices.ContainsFunc(got, func(a App) bool { return a.ID == "qt" }); has != c.want {
+			t.Errorf("%+v on %s %s: qt listed = %v, want %v", c.h, c.t.Path, c.v, has, c.want)
+		}
 	}
 }

@@ -212,10 +212,15 @@ Asks each source, merges by app, and keeps the first source's default
 unless a later one is told to override (`Override(src)`). A later source
 corrects an earlier one:
 
-- `Hide(ids ...string)`: drop apps (QuickTime from Edit for images).
+- `Hide(ids ...string)`: drop apps for every verb and type.
+- `HideFor(verbs []Verb, kinds []string, ids ...string)`: drop apps only for
+  those verbs (empty means both) and for a target whose Kind or Type is one of
+  kinds (empty means all): QuickTime from Edit for images is
+  `HideFor([]Verb{Edit}, []string{".png", ".jpg"}, "mac:com.apple.QuickTimePlayerX")`.
 - `Rename(id, name)`, `Rank(ids ...string)`: names and order.
 - A `ListApp` whose ID names a system app (`mac:com.microsoft.VSCode`)
-  replaces that app's name or verbs instead of adding a second row.
+  replaces that app's name instead of adding a second row; its verbs and
+  kinds do not change where the system app is offered.
 - `Alias(id, systemID)`: keep an old ID (gloss's `vscode`) meaning the system
   app, so saved preferences survive.
 
@@ -344,7 +349,9 @@ and its editor handoff, and replaces `internal/openwith` with:
 - `Layered(system.System(), its corrections, List(TerminalEditor(),
   TerminalEditors()...))`, with `Alias` for `vscode`, `cursor`, `zed`,
   `sublime`, `preview`, `skim`;
-- `LoadPreferences` on the existing `gloss/open-with.json`;
+- `LoadPreferences` on a new `gloss/open-with-v1.json`, and, when that is
+  missing, `LoadLegacyPreferences` on the existing `gloss/open-with.json`,
+  never writing to it (see Preferences);
 - an Edit binding and Edit chooser (keys are gloss's decision, in its own
   plan), and `--apps` growing a `verb` field.
 

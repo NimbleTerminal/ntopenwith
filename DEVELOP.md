@@ -82,8 +82,10 @@ keep in mind:
   tested with a fake anywhere. If Launch Services cannot be loaded, `System()`
   falls back to the empty source.
 - Real data is noisy: QuickTime Player claims to "edit" PNG, and some apps only
-  "view" a format. That is what `Layered` corrections (`Hide`, `Rank`) are for in
-  the program, not something to patch in the library.
+  "view" a format. That is what `Layered` corrections (`HideFor`, `Hide`, `Rank`)
+  are for in the program, not something to patch in the library:
+  `HideFor([]Verb{Edit}, []string{".png"}, "mac:com.apple.QuickTimePlayerX")`
+  keeps QuickTime for opening a PNG and drops it from editing one.
 
 ## Windows
 

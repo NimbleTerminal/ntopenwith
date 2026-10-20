@@ -100,7 +100,8 @@ entries may correct the earlier ones:
 ```go
 src := ntopenwith.Layered(
 	system.System(),
-	ntopenwith.Hide("mac:com.apple.QuickTimePlayerX"),         // not an image editor
+	ntopenwith.HideFor([]ntopenwith.Verb{ntopenwith.Edit}, []string{".png", ".jpg"},
+		"mac:com.apple.QuickTimePlayerX"), // not an image editor
 	ntopenwith.Rename("mac:com.microsoft.VSCode", "VS Code"),
 	ntopenwith.Rank("mac:com.microsoft.VSCode"),                // listed first
 	ntopenwith.Alias("vscode", "mac:com.microsoft.VSCode"),     // an old saved ID still works
@@ -109,7 +110,10 @@ src := ntopenwith.Layered(
 )
 ```
 
-`Override(src)` lets a later source's default win. `Layered` is a `Source`, so
+`Hide(ids...)` drops apps for every verb and type; `HideFor(verbs, kinds,
+ids...)` only for those verbs and kinds (either empty means all). A `ListApp`
+with the ID of an app already listed only renames it. `Override(src)` lets a
+later source's default win. `Layered` is a `Source`, so
 it nests. A program that wants a fixed list passes only `List(...)`.
 
 ## Choosing and launching
