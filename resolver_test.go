@@ -540,3 +540,30 @@ func TestIsHiddenProtected(t *testing.T) {
 		t.Fatal("protected IDs reported hidden")
 	}
 }
+
+// Whatever a source offers, Launch never hands a binary file to the terminal
+// editor for Edit.
+func TestResolverLaunchRefusesTerminalEditorForBinaryEdit(t *testing.T) {
+	src := &fakeSource{apps: []App{{ID: TerminalEditorID, Name: "Edit in terminal", Terminal: true}}}
+	r := NewResolver(src, Preferences{})
+	path := tempFile(t, "a.png")
+	ctx := context.Background()
+	if _, err := r.Launch(ctx, Target{Path: path}, Edit, App{ID: TerminalEditorID}); !errors.Is(err, ErrNotOffered) {
+		t.Errorf("Launch = %v, want ErrNotOffered", err)
+	}
+	if len(src.launched) != 0 {
+		t.Fatalf("the source launched %v", src.launched)
+	}
+	// Text, or Open, still goes to the source.
+	for _, c := range []struct {
+		t Target
+		v Verb
+	}{{Target{Path: path, Text: true}, Edit}, {Target{Path: path}, Open}} {
+		if _, err := r.Launch(ctx, c.t, c.v, App{ID: TerminalEditorID}); err != nil {
+			t.Errorf("%s text=%v: %v", c.v, c.t.Text, err)
+		}
+	}
+	if want := []string{TerminalEditorID, TerminalEditorID}; !reflect.DeepEqual(src.launched, want) {
+		t.Errorf("launched %v, want %v", src.launched, want)
+	}
+}

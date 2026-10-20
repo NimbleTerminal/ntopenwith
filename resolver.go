@@ -276,8 +276,13 @@ func (r *Resolver) hiddenLocked(id string) bool {
 }
 
 // Launch checks t's path and starts app on it through the source. A terminal
-// app comes back as an unstarted command.
+// app comes back as an unstarted command. The terminal editor never edits a
+// target that is not Text, whatever the source offers: that is
+// [ErrNotOffered].
 func (r *Resolver) Launch(ctx context.Context, t Target, v Verb, app App) (*exec.Cmd, error) {
+	if v == Edit && !t.Text && r.canonical(app.ID) == TerminalEditorID {
+		return nil, ErrNotOffered
+	}
 	path, err := CheckPath(t.Path, t.Directory)
 	if err != nil {
 		return nil, err
