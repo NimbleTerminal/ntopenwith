@@ -201,8 +201,10 @@ cannot make it safe.)
 - **Windows** offers only `.exe` programs from `OpenWithList`. A ProgID's own
   command is run by the shell through `ShellExecuteExW`, never rebuilt by the
   library.
-- **GUI children** are started with no input and their output discarded, and
-  reaped in the background.
+- **GUI children** are started with no input and their output discarded, in a
+  session of their own (a new process group on Windows) so that closing the
+  terminal does not end them, and reaped in the background. Terminal apps are
+  returned unstarted and stay with your terminal.
 - **Names are data.** Bundle names, `Name=` entries and registry strings come
   back unescaped. A terminal program must make them safe before drawing them
   (`ntopen` replaces control characters).

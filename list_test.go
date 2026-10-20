@@ -213,6 +213,10 @@ func TestListLaunchTerminalReturnsCmd(t *testing.T) {
 	if cmd == nil || cmd.Process != nil {
 		t.Fatalf("cmd = %+v, want an unstarted command", cmd)
 	}
+	// It runs in the caller's terminal, so it is not detached from it.
+	if cmd.SysProcAttr != nil {
+		t.Errorf("SysProcAttr = %+v, want none for a terminal app", cmd.SysProcAttr)
+	}
 	if want := []string{"ed", "-x", path}; !reflect.DeepEqual(cmd.Args, want) {
 		t.Errorf("Args = %q, want %q", cmd.Args, want)
 	}

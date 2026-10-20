@@ -43,7 +43,9 @@ func Command(argv []string, path string) ([]string, error) {
 }
 
 // Start runs argv directly, with no shell and no input or output, and does
-// not wait for it to finish: the child is reaped in the background.
+// not wait for it to finish: the child is reaped in the background. It is
+// started in a session of its own (on Windows, a process group), so that it
+// outlives the terminal it was started from.
 func Start(argv []string) error {
 	if runtime.GOOS == "js" {
 		return ErrUnsupported
@@ -53,6 +55,7 @@ func Start(argv []string) error {
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	// Stdin, Stdout and Stderr stay nil: the child gets the null device.
+	detach(cmd)
 	if err := startCommand(cmd); err != nil {
 		return err
 	}
