@@ -8,7 +8,8 @@ import (
 
 // Reveal shows path in the platform's file manager: the file selected in its
 // folder where the platform can, or the folder itself when path is a
-// directory. It does not wait for the file manager.
+// directory. On macOS a folder is selected in its parent as a file is, so
+// that a bundle such as Foo.app is shown, not launched. It does not wait for the file manager.
 //
 // path is checked with [CheckPath] first. On a platform with no file manager
 // to ask, including js/wasm, it returns [ErrUnsupported].
@@ -28,9 +29,8 @@ func Reveal(path string) error {
 	}
 	switch runtime.GOOS {
 	case "darwin":
-		if isDir {
-			return Start([]string{"open", p})
-		}
+		// A folder is selected in its parent too: "open" on a bundle, such
+		// as Foo.app, would launch it rather than show it.
 		return Start([]string{"open", "-R", p})
 	case "windows":
 		if isDir {

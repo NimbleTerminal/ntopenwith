@@ -206,7 +206,9 @@ cannot make it safe.)
   (`.exe`, `.bat`, `.js`, `.lnk`, a script or an application) that means *running
   the file*. The library cannot tell which files that is for, so a program that
   opens files it did not make should filter such types before offering Open or
-  `system`.
+  `system`. For a `Directory` target on macOS, `system` opens the folder as
+  Finder does: a bundle such as `Foo.app` is launched, and a `.prefPane`
+  installed. `Reveal` only selects a folder, so it never runs one.
 - No environment variable other than `VISUAL`/`EDITOR` can add a command. `PATH`,
   `HOME` (`USERPROFILE` on Windows), `PATHEXT` and the `XDG_*` variables shape
   the OS's own list, as they do for any file manager.

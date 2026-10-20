@@ -15,8 +15,10 @@ import (
 func wantReveal(file, dir string, isDir bool) []string {
 	switch runtime.GOOS {
 	case "darwin":
+		// A folder is selected too: "open" on a bundle such as Foo.app
+		// would launch it.
 		if isDir {
-			return []string{"open", dir}
+			return []string{"open", "-R", dir}
 		}
 		return []string{"open", "-R", file}
 	case "windows":
@@ -36,6 +38,10 @@ func TestRevealArgs(t *testing.T) {
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	bundle := filepath.Join(dir, "Foo.app")
+	if err := os.Mkdir(bundle, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	var got []string
 	old := startCommand
 	t.Cleanup(func() { startCommand = old })
@@ -46,12 +52,13 @@ func TestRevealArgs(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		path  string
+		dir   string // the folder shown
 		isDir bool
-	}{{"file", file, false}, {"directory", dir, true}} {
+	}{{"file", file, dir, false}, {"directory", dir, dir, true}, {"bundle", bundle, bundle, true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			got = nil
 			err := Reveal(tc.path)
-			want := wantReveal(file, dir, tc.isDir)
+			want := wantReveal(file, tc.dir, tc.isDir)
 			if want == nil {
 				if !errors.Is(err, ErrUnsupported) {
 					t.Fatalf("Reveal = %v, want ErrUnsupported", err)
