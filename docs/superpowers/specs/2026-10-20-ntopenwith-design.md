@@ -79,7 +79,8 @@ may be empty for a question about a type, as `--apps` and a settings screen
 ask), `Ext` (the type as an extension, `.png`, used when there is no Path and
 as the type otherwise when the OS cannot tell), `Kind` (optional,
 the program's own name for the file's type, such as gloss's `pdf`, `image/*`,
-`markdown`), `Directory` (only Reveal applies), `Text` (the original is text,
+`markdown`), `Directory` (a folder: Reveal, and Open where a source offers
+apps for folders, such as `system`), `Text` (the original is text,
 so a terminal editor makes sense; the program decides, gloss from its format
 list).
 
@@ -304,7 +305,7 @@ resolve through `Alias`. (*Builder's-check call.*)
 - Preferences hold IDs only, and an ID launches only if the source still
   offers it for that target and verb.
 - The path is absolute, cleaned, has no NUL, is a regular file (or a
-  directory for Reveal), and is passed as one argument; a path beginning with
+  directory for a `Directory` target), and is passed as one argument; a path beginning with
   `-` is passed as `./-…` or after `--` where the launcher allows.
 - GUI children are started and reaped in the background; no stdin, and
   their output discarded.

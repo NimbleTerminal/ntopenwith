@@ -11,9 +11,9 @@ operating system's default, unless the person has saved a choice of their own),
 and launches it without a shell.
 
 It has no user interface and no dependency on Bubble Tea: your program draws the
-menu and stores the choice. It is the library behind
-[gloss](https://github.com/NimbleTerminal/gloss)'s `w` and `W` keys, and knows
-nothing of gloss.
+menu and stores the choice. It is built for
+[gloss](https://github.com/NimbleTerminal/gloss)'s `w` and `W` keys (gloss
+adopts it after v0.1.0), and knows nothing of gloss.
 
 Module `nimbleterminal.dev/ntopenwith`, Go 1.26.8+. No CGO: it builds for every
 OS, and under `js/wasm` it lists nothing and every launch returns
@@ -191,8 +191,10 @@ cannot make it safe.)
 - **Preferences hold IDs only.** An ID launches only if the source offers it *now*
   for that target and verb. `Layered` launches only what it offers now, so an ID
   that is hidden, gone or made up is refused with `ErrNotOffered`.
-- **The path** is absolute, cleaned, free of NUL, a regular file (a folder only
-  for `Reveal`), and passed as one argument. `{}` must be a whole argument.
+- **The path** is absolute, cleaned, free of NUL, and passed as one argument. It
+  is a regular file, or a folder only when the `Target` says `Directory` (for
+  `Reveal`, or for Open with a source that offers apps for folders, such as
+  `system`). `{}` must be a whole argument.
 - **Edit never uses `$VISUAL` or `$EDITOR` for a target that is not `Text`**, whatever the source says:
   a PNG or a spreadsheet is not handed to vim.
 - **XDG `Exec` lines** are refused, not guessed at, when a file code (`%f %F %u

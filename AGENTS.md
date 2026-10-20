@@ -48,7 +48,7 @@ CHANGELOG consistent with the code. Written for gloss to move onto
 - Preferences hold IDs only; an ID launches only if the source still offers it
   for that target and verb. `Layered` launches only what it offers now.
 - Paths launched are absolute, cleaned, NUL-free, a regular file (a directory
-  only for `Reveal`), and passed as one argument.
+  only for `Reveal` or a `Directory` target), and passed as one argument.
 - Edit on a non-`Text` target never offers or uses `$VISUAL`/`$EDITOR`.
 - Preference files: at most 64 KiB, one JSON object, unknown fields and trailing
   data rejected, written to a temporary file in the same folder and renamed,
