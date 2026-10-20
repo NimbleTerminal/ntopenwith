@@ -1,8 +1,8 @@
 # `ntopenwith` CHANGELOG
 
-## Unreleased
+## v0.1.0 (2026-10-20)
 
-First version.
+First release.
 
 * Add `Target`, `Verb` (`Open`, `Edit`), `App` and `Source`: which apps can open
   or edit a file, and how to launch one without a shell.
@@ -13,8 +13,9 @@ First version.
   five-second listings.
 * Add `List`, `ListApp`, `TerminalEditor` and `TerminalEditors`: a program's own
   apps, and the editor named by `$VISUAL` or `$EDITOR` (for text only).
-* Add `Layered` with `Hide`, `HideFor`, `Rename`, `Rank`, `Alias` and `Override`: one source
-  corrected by another, with old app IDs kept as aliases.
+* Add `Layered` with `Hide`, `HideFor`, `Rename`, `Rank`, `Alias` and
+  `Override`: one source corrected by another, with old app IDs kept as
+  aliases.
 * Add `Preferences` (IDs only) with a bounded file format, and
   `LoadLegacyPreferences` for gloss's earlier one.
 * Add `Resolver`: the saved choice, then the OS default, for Open and Edit;
@@ -27,3 +28,7 @@ First version.
   mode over a made-up home folder. The examples are now a module of their own.
 * Add a browser demo of `examples/choose`, at
   <https://nimbleterminal.github.io/ntopenwith/>.
+
+Known limits: Windows is tested by CI only, not yet on a desktop. Where
+Windows has no friendly name for a handler (Notepad as a packaged app), the
+handler is shown by its ProgID, such as `txtfile`.
