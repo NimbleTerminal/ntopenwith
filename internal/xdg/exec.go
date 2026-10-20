@@ -23,11 +23,15 @@ import (
 //	%d %D %n %N %v %m   deprecated, removed
 //
 // An argument left empty by a removed code is dropped. Any other code is an
-// error. A file code (%f %F %u %U) is also an error inside a quoted argument,
-// where the specification leaves it undefined and where a program such as
-// sh -c would read the path as its own commands; so is a second file code, or
-// any code in the program name. If no file code appears, the path is appended
-// as the last argument, since an app told nothing of the file could not open it.
+// error. A file code (%f %F %u %U) is also an error in any argument that has
+// a quoted part, where the specification leaves it undefined; so is a code
+// split by a quote, a second file code, or any code in the program name.
+// If no file code appears, the path is appended as the last argument, since
+// an app told nothing of the file could not open it.
+//
+// These rules catch quoting mistakes in ordinary Exec lines. An Exec line that
+// hands its argument to an interpreter (such as sh -c %f) is the desktop
+// file's own choice, and field-code rules cannot make it safe.
 func ExpandExec(e Entry, path string) ([]string, error) {
 	if path == "" {
 		return nil, errors.New("xdg: no file to open")
@@ -39,13 +43,11 @@ func ExpandExec(e Entry, path string) ([]string, error) {
 	var argv []string
 	files := 0
 	for i, w := range words {
-		args, n, err := expandWord(e, w, path, i == 0)
+		args, n, err := expandWord(e, w, path, i == 0, files > 0)
 		if err != nil {
 			return nil, fmt.Errorf("xdg: %s: %w", e.ID, err)
 		}
-		if files += n; files > 1 {
-			return nil, fmt.Errorf("xdg: %s: the Exec line has more than one file code", e.ID)
-		}
+		files += n
 		argv = append(argv, args...)
 	}
 	if len(argv) == 0 || argv[0] == "" {
@@ -59,17 +61,9 @@ func ExpandExec(e Entry, path string) ([]string, error) {
 
 // execWord is one argument of an Exec line after quoting is removed.
 type execWord struct {
-	text   string
-	quoted []int // offsets in text of the bytes that were inside double quotes
-}
-
-func (w execWord) inQuotes(off int) bool {
-	for _, q := range w.quoted {
-		if q == off {
-			return true
-		}
-	}
-	return false
+	text     string
+	hasQuote bool   // some part of the argument was in double quotes
+	quoted   []bool // quoted[i] says whether text[i] was inside double quotes
 }
 
 // splitExec applies the Exec quoting rules, giving the arguments before field
@@ -77,13 +71,13 @@ func (w execWord) inQuotes(off int) bool {
 func splitExec(s string) ([]execWord, error) {
 	var words []execWord
 	var cur strings.Builder
-	var quoted []int
+	var quoted []bool
+	hasQuote := false
 	inWord, inQuote := false, false
 	push := func() {
-		words = append(words, execWord{text: cur.String(), quoted: quoted})
+		words = append(words, execWord{text: cur.String(), hasQuote: hasQuote, quoted: quoted})
 		cur.Reset()
-		quoted = nil
-		inWord = false
+		quoted, hasQuote, inWord = nil, false, false
 	}
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -92,11 +86,11 @@ func splitExec(s string) ([]execWord, error) {
 			case c == '"':
 				inQuote = false
 			case c == '\\' && i+1 < len(s) && strings.IndexByte("\"`$\\", s[i+1]) >= 0:
-				quoted = append(quoted, cur.Len())
+				quoted = append(quoted, true)
 				cur.WriteByte(s[i+1])
 				i++
 			default:
-				quoted = append(quoted, cur.Len())
+				quoted = append(quoted, true)
 				cur.WriteByte(c)
 			}
 			continue
@@ -107,8 +101,9 @@ func splitExec(s string) ([]execWord, error) {
 				push()
 			}
 		case '"':
-			inQuote, inWord = true, true
+			inQuote, inWord, hasQuote = true, true, true
 		default:
+			quoted = append(quoted, false)
 			cur.WriteByte(c)
 			inWord = true
 		}
@@ -124,8 +119,8 @@ func splitExec(s string) ([]execWord, error) {
 
 // expandWord replaces the field codes in one argument and counts the file
 // codes it held. program is true for the first argument, which no code may
-// make.
-func expandWord(e Entry, w execWord, path string, program bool) (args []string, files int, err error) {
+// make, and haveFile that an earlier argument held a file code.
+func expandWord(e Entry, w execWord, path string, program, haveFile bool) (args []string, files int, err error) {
 	text := w.text
 	if text == "%i" && !program {
 		if e.Icon == "" {
@@ -143,9 +138,11 @@ func expandWord(e Entry, w execWord, path string, program bool) (args []string, 
 		if i+1 == len(text) {
 			return nil, 0, errors.New("the Exec line ends in a lone %")
 		}
-		at := i
 		i++
 		code := text[i]
+		if w.quoted[i-1] != w.quoted[i] {
+			return nil, 0, errors.New("the Exec line has a field code split by a quote")
+		}
 		if code == '%' {
 			b.WriteByte('%')
 			continue
@@ -155,8 +152,11 @@ func expandWord(e Entry, w execWord, path string, program bool) (args []string, 
 		}
 		switch code {
 		case 'f', 'F', 'u', 'U':
-			if w.inQuotes(at) {
-				return nil, 0, fmt.Errorf("the Exec line has %%%c inside quotes", code)
+			if w.hasQuote {
+				return nil, 0, fmt.Errorf("the Exec line has %%%c in a quoted argument", code)
+			}
+			if haveFile || files > 0 {
+				return nil, 0, errors.New("the Exec line has more than one file code")
 			}
 			if (code == 'F' || code == 'U') && text != "%"+string(code) {
 				return nil, 0, fmt.Errorf("the Exec line has %%%c inside a larger argument", code)
