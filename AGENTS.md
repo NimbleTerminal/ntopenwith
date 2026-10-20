@@ -30,7 +30,8 @@ CHANGELOG consistent with the code. Written for gloss to move onto
   stay out of the root `go.mod`. `examples/ntopen` is the command-line example;
   it takes its source from a package variable so the test can inject a fake.
   `examples/choose` is a Bubble Tea host on ntfilepicker (Enter, Ctrl+E,
-  Alt+Enter, Alt+E, a chooser with `d` for the default), native or `-pretend`
+  Alt+Enter, Alt+E, a chooser with Tab between Open and Edit and `d` for the
+  default), native or `-pretend`
   (a made-up home folder and a pretend `Source` in `pretend.go`; always under
   js/wasm). `examples/internal/demorun` publishes keys to booba's action bar.
 - `web/`, `scripts/`, `wasm.work`: the browser demo of `choose`, as in
@@ -89,8 +90,9 @@ CHANGELOG consistent with the code. Written for gloss to move onto
 
 `task ci` before finishing: gofmt, `go mod tidy -diff`, race tests, vet, the
 cross-platform builds without CGO (windows, linux, darwin, freebsd, js/wasm), the
-examples, the WASM site (`build-wasm-site`, then `check-site`: syntax, assets,
-and the demo run under Node), the notices check, staticcheck; each Go step in
-both modules. Never commit the generated files in `web/`. If staticcheck fails on a Go toolchain
+examples, the notices check, staticcheck; each Go step in both modules. For a
+change to the examples or the site, also `task ci-site` (`build-wasm-site`, then
+`check-site`: syntax, assets, and the demo run under Node; CI runs it on Ubuntu
+only). Never commit the generated files in `web/`. If staticcheck fails on a Go toolchain
 mismatch, rerun it with `GOTOOLCHAIN` set to the version in `go.mod`. CI runs it
 on macOS, Ubuntu and Windows.

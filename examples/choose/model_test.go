@@ -95,6 +95,8 @@ func keyPress(name string) tea.KeyPressMsg {
 		k.Code = tea.KeyEnter
 	case "esc":
 		k.Code = tea.KeyEscape
+	case "tab":
+		k.Code = tea.KeyTab
 	case "up":
 		k.Code = tea.KeyUp
 	case "down":
@@ -374,4 +376,45 @@ func TestNamesAreMadeSafe(t *testing.T) {
 	if got := safe("evil\x1b[2Jname\n"); strings.ContainsAny(got, "\x1b\n") {
 		t.Fatalf("safe left control characters: %q", got)
 	}
+}
+
+func TestTabSwitchesVerb(t *testing.T) {
+	d := pretendDriver(t, ntopenwith.Preferences{})
+	d.highlight("Pictures/landscape.png")
+	d.press("alt+enter", "tab")
+	c := d.chooser()
+	if c.verb != ntopenwith.Edit || path.Base(c.target.Path) != "landscape.png" {
+		t.Fatalf("chooser for %s %s", c.verb, c.target.Path)
+	}
+	if slices.Contains(names(c.apps), "QuickTime Player") {
+		t.Fatalf("QuickTime offered to edit: %v", names(c.apps))
+	}
+	view := d.m.View().Content
+	if !strings.Contains(view, "Edit landscape.png with") || !strings.Contains(view, "Tab open with") {
+		t.Fatalf("header or hint missing from:\n%s", view)
+	}
+	d.press("tab")
+	c = d.chooser()
+	if c.verb != ntopenwith.Open || !slices.Contains(names(c.apps), "QuickTime Player") {
+		t.Fatalf("chooser for %s %v", c.verb, names(c.apps))
+	}
+	if view := d.m.View().Content; !strings.Contains(view, "Open landscape.png with") || !strings.Contains(view, "Tab edit with") {
+		t.Fatalf("header or hint missing from:\n%s", view)
+	}
+}
+
+func TestTabKeepsTheChooserWhenNothingCanEdit(t *testing.T) {
+	d := pretendDriver(t, ntopenwith.Preferences{})
+	d.highlight("Music/Ferrite Hearts - Magnetic.mp3")
+	d.press("alt+enter", "tab")
+	if c := d.chooser(); c.verb != ntopenwith.Open {
+		t.Fatalf("verb %s", c.verb)
+	}
+	d.status("No app can edit")
+	d.highlight("Documents")
+	d.press("esc", "alt+enter", "tab")
+	if c := d.chooser(); c.verb != ntopenwith.Open {
+		t.Fatalf("verb %s", c.verb)
+	}
+	d.status("Folders cannot be edited")
 }

@@ -277,8 +277,8 @@ go -C examples run ./choose -prefs ~/.config/choose.json   # keep saved defaults
 | --- | --- |
 | Enter | open the file with the app `Resolve` picks |
 | Ctrl+E | edit it; with no default editor, the Edit chooser opens |
-| Alt+Enter, Alt+E | the "Open with" and "Edit with" choosers |
-| in a chooser: ↑/↓ (j/k), Enter, d, Esc | move, launch, save the default for the file's type (on System default: clear it), close |
+| Alt+Enter, Alt+E | the "Open with" and "Edit with" choosers (Alt+E in a terminal only: a browser gives the `e` to the filter) |
+| in a chooser: ↑/↓ (j/k), Enter, Tab, d, Esc | move, launch, switch between "Open with" and "Edit with" for the same file, save the default for the file's type (on System default: clear it), close |
 
 Letters belong to the file chooser's filter, so the file list has no letter
 keys. A terminal editor runs in the terminal through `tea.ExecProcess`. The

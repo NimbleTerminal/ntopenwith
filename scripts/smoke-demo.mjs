@@ -52,6 +52,12 @@ try {
   await expectOutput('Would open report.pdf with Preview');
   bubbletea_write('\x1b\r'); // Alt+Enter: the "Open with" chooser.
   await expectOutput('Open report.pdf with');
+  // Tab: the Edit with list for the same file, then back. Only the words that
+  // change are redrawn, so look for the footer's "Enter edit · Tab open with".
+  bubbletea_write('\t');
+  await expectOutput('edit · Tab open');
+  bubbletea_write('\t');
+  await expectOutput('open · Tab edit');
   // The terminal is sent only what changed, so each step below is checked by
   // text that is new on the screen.
   bubbletea_write('\x1b[Bd'); // Down to System default, and make it the default.
@@ -64,7 +70,7 @@ try {
   bubbletea_write('\x03');
   await running;
   assert.equal(exitCode, 0);
-  console.log('Demo: startup, actions, filter, open a folder, open a file, the Open with chooser, a saved default, resize, and quit passed');
+  console.log('Demo: startup, actions, filter, open a folder, open a file, the Open with chooser, Tab to Edit with and back, a saved default, resize, and quit passed');
 } finally {
   clearTimeout(timeout);
 }

@@ -7,8 +7,9 @@
 //	go run ./choose -prefs FILE     # keep the defaults you save in FILE
 //
 // Enter opens the file, Ctrl+E edits it, Alt+Enter and Alt+E choose the app
-// to open or edit it with. In the chooser, d saves the highlighted app as the
-// default for the file's type. Under js/wasm it is always pretend.
+// to open or edit it with; in the chooser, Tab switches between the two (a
+// browser gives Alt+E's e to the filter), and d saves the highlighted app as
+// the default for the file's type. Under js/wasm it is always pretend.
 package main
 
 import (

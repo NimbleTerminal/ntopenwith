@@ -92,7 +92,10 @@ type (
 		verb   ntopenwith.Verb
 		apps   []ntopenwith.App
 		keep   string // the app ID to put the cursor on, else the default
-		err    error
+		// switching is true when Tab asked for the other verb's list: the
+		// chooser stays as it was if that list is empty.
+		switching bool
+		err       error
 	}
 	launchedMsg struct {
 		target   ntopenwith.Target
@@ -308,9 +311,9 @@ func (m model) View() tea.View {
 	if m.failed {
 		style = errorStyle
 	}
-	hint := "Enter open · Ctrl+E edit · Alt+Enter open with · Alt+E edit with · Ctrl+C quit"
+	hint := "Enter open · Ctrl+E edit · Alt+Enter open with (Tab: edit with) · Alt+E edit with · Ctrl+C quit"
 	if m.chooser != nil {
-		hint = "↑/↓ move · Enter " + string(m.chooser.verb) + " · d make default · Esc close"
+		hint = "↑/↓ move · Enter " + string(m.chooser.verb) + " · Tab " + string(other(m.chooser.verb)) + " with · d make default · Esc close"
 	}
 	rule := ruleStyle.Render(strings.Repeat("─", w))
 	v := tea.NewView(list + "\n" + rule + "\n" + style.Render(clip(m.status, w)) + "\n" + hintStyle.Render(clip(hint, w)))

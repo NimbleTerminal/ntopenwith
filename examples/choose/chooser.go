@@ -34,6 +34,13 @@ func (m model) gotChoices(msg choicesMsg) (tea.Model, tea.Cmd) {
 	if msg.keep != "" && (m.chooser == nil || m.chooser.target != msg.target || m.chooser.verb != msg.verb) {
 		return m, nil // a reload for a chooser since closed
 	}
+	if msg.switching && (m.chooser == nil || m.chooser.target != msg.target) {
+		return m, nil // the chooser closed, or moved on, before the list came
+	}
+	if len(msg.apps) == 0 && msg.switching {
+		m.say(true, "No app can %s %s", msg.verb, m.name(msg.target))
+		return m, nil
+	}
 	if len(msg.apps) == 0 {
 		m.chooser = nil
 		m.say(true, "No app can %s %s", msg.verb, m.name(msg.target))
@@ -62,6 +69,18 @@ func (m model) chooserKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		c.cursor = 0
 	case "end":
 		c.cursor = len(c.apps) - 1
+	case "tab":
+		// The same file, with the other verb's list.
+		v := other(c.verb)
+		if v == ntopenwith.Edit && c.target.Directory {
+			m.say(true, "Folders cannot be edited")
+			return m, nil
+		}
+		r, t := m.resolver, c.target
+		return m, func() tea.Msg {
+			apps, err := r.Choices(context.Background(), t, v)
+			return choicesMsg{target: t, verb: v, apps: apps, err: err, switching: true}
+		}
 	case "enter":
 		m.chooser = nil
 		return m, m.launch(c.target, c.verb, c.apps[c.cursor], false)
@@ -135,6 +154,14 @@ func (c *chooser) over(base string, width, height int) string {
 		lipgloss.NewLayer(box).X(x).Y(y).Z(1),
 	))
 	return canvas.Render()
+}
+
+// other is the verb Tab switches to.
+func other(v ntopenwith.Verb) ntopenwith.Verb {
+	if v == ntopenwith.Open {
+		return ntopenwith.Edit
+	}
+	return ntopenwith.Open
 }
 
 // tag notes a terminal app, which takes the terminal while it runs.
