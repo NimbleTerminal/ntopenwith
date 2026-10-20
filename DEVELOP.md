@@ -90,7 +90,9 @@ keep in mind:
 The registry and `ShellExecuteExW` come from `golang.org/x/sys/windows`. Handlers
 are read from the extension's `UserChoice`, `OpenWithProgids` and `OpenWithList`
 (user and machine); the ProgID's `shell\edit` verb gives Edit. A program that has
-only an `.exe` name is offered only if it resolves to an `.exe`.
+only an `.exe` name is listed unless it resolves on the `PATH` to something other
+than an `.exe` (a batch file, say), which is dropped; if it does not resolve at
+all, it is listed and Launch fails with "not found on PATH".
 
 ## Releasing
 

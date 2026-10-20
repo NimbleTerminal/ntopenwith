@@ -42,7 +42,8 @@ Every list of apps is a `Source`: `Apps` says which can act on a `Target` with a
 The operating system's own index of handlers, with its default first. On macOS
 that is Launch Services (through purego, no CGO), where "edit" is a real role, so
 Preview opens a PNG and Pixelmator edits it. On Linux and the BSDs it is the XDG
-data: `mimeapps.list`, `mimeinfo.cache` and the desktop entries. On Windows it is
+data: the MIME globs (`mime/globs2`), the desktop entries' `MimeType=`, and
+`mimeapps.list`. On Windows it is
 the registry and the shell. The app `system` ("System default") hands the file to
 the OS's own opener and is offered for Open everywhere.
 
@@ -150,7 +151,7 @@ error. What the platforms mean by an Edit default:
 | | Open default | Edit default | Edit offers |
 | --- | --- | --- | --- |
 | macOS | Launch Services' default viewer or editor | its default editor role | apps with the editor role |
-| Linux, BSDs | `mimeapps.list`, then `mimeinfo.cache` order | none: `ErrChoose`, so the program shows a chooser | entries categorized TextEditor, Graphics, Office, Development or 3DGraphics |
+| Linux, BSDs | the `[Default Applications]` of `mimeapps.list`; with none, `system` (`xdg-open` decides) | none: `ErrChoose`, so the program shows a chooser | entries categorized TextEditor, Graphics, Office, Development or 3DGraphics |
 | Windows | the extension's `UserChoice` | the `edit` verb of its ProgID | the ProgIDs with an `edit` verb |
 
 Terminal editors are never offered for Open: a program that wants one in its
@@ -175,11 +176,13 @@ App IDs are `system`, `terminal-editor`, `mac:<bundle id>`, `xdg:<desktop file i
 
 ## Safety
 
-A launch is never a shell. What can run is one of four things: the OS's
+The library never invokes a shell. What it can run is one of four things: the OS's
 registered handler, started by the OS's own launcher (`open -a`,
 `ShellExecuteExW`); an XDG desktop entry's `Exec`, expanded as the Desktop Entry
 specification says; a command compiled into your program with `List`; or
-`$VISUAL`/`$EDITOR`.
+`$VISUAL`/`$EDITOR`. (An installed desktop entry's `Exec` can itself name a
+shell, such as `sh -c`; that is the entry's own choice, and field-code rules
+cannot make it safe.)
 
 - **Preferences hold IDs only.** An ID launches only if the source offers it *now*
   for that target and verb. `Layered` launches only what it offers now, so an ID
@@ -204,8 +207,9 @@ specification says; a command compiled into your program with `List`; or
   the file*. The library cannot tell which files that is for, so a program that
   opens files it did not make should filter such types before offering Open or
   `system`.
-- The environment is read for `PATH`, `VISUAL`, `EDITOR`, and on XDG systems the
-  `XDG_*` variables that every file manager reads, and for nothing else.
+- No environment variable other than `VISUAL`/`EDITOR` can add a command. `PATH`,
+  `HOME` (`USERPROFILE` on Windows), `PATHEXT` and the `XDG_*` variables shape
+  the OS's own list, as they do for any file manager.
 
 `ntopenwith.Reveal(path)` shows a file in Finder, Explorer, or (on XDG) its folder
 in the default file manager.

@@ -169,7 +169,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		out, _ := json.Marshal(entries(verb, []ntopenwith.App{app})[0])
 		fmt.Fprintf(stdout, "%s\n", out)
 	} else {
-		fmt.Fprintf(stdout, "%s %s with %s (%s)\n", map[ntopenwith.Verb]string{ntopenwith.Open: "opened", ntopenwith.Edit: "editing"}[verb], target.Path, clean(app.Name), app.ID)
+		fmt.Fprintf(stdout, "%s %s with %s (%s)\n", map[ntopenwith.Verb]string{ntopenwith.Open: "opened", ntopenwith.Edit: "editing"}[verb], target.Path, clean(app.Name), clean(app.ID))
 	}
 	return exitOK
 }
@@ -215,7 +215,7 @@ func printList(stdout, stderr io.Writer, verbs []ntopenwith.Verb, list []entry, 
 			if e.Terminal {
 				kind = "  (terminal)"
 			}
-			fmt.Fprintf(stdout, "  %s %s  %s%s\n", mark, e.ID, clean(e.Name), kind)
+			fmt.Fprintf(stdout, "  %s %s  %s%s\n", mark, clean(e.ID), clean(e.Name), kind)
 		}
 		if n == 0 {
 			fmt.Fprintln(stdout, "  (none)")
@@ -224,7 +224,7 @@ func printList(stdout, stderr io.Writer, verbs []ntopenwith.Verb, list []entry, 
 	return exitOK
 }
 
-// clean makes a name from the system safe to print: control characters,
+// clean makes a name or ID from the system safe to print: control characters,
 // which could carry escape sequences, become '?'.
 func clean(s string) string {
 	return strings.Map(func(r rune) rune {

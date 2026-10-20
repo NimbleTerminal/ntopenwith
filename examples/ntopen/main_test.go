@@ -226,12 +226,12 @@ func TestErrors(t *testing.T) {
 
 func TestNamesAreCleaned(t *testing.T) {
 	f := &fake{apps: map[ntopenwith.Verb][]ntopenwith.App{
-		ntopenwith.Open: {{ID: "mac:x", Name: "Evil\x1b[31m"}},
+		ntopenwith.Open: {{ID: "xdg:\x1b]0;x\x07.desktop", Name: "Evil\x1b[31m"}},
 	}}
 	use(t, f)
 	var out bytes.Buffer
 	run([]string{"list", file(t, "a.txt", "x")}, &out, &bytes.Buffer{})
-	if strings.ContainsRune(out.String(), 0x1b) {
+	if strings.ContainsAny(out.String(), "\x1b\x07") {
 		t.Errorf("escape in %q", out.String())
 	}
 }

@@ -37,12 +37,14 @@ CHANGELOG consistent with the code. Written for gloss to move onto
   `ErrUnsupported`.
 - No user interface and no Bubble Tea. A terminal app comes back as an
   unstarted `*exec.Cmd`; the library never starts one.
-- Never a shell. What runs: an OS handler through the OS's launcher (`open -a`,
+- The library never invokes a shell (a desktop entry's own `Exec` may name one;
+  README, Safety). What runs: an OS handler through the OS's launcher (`open -a`,
   `ShellExecuteExW`), an XDG `Exec` expanded per the Desktop Entry
   specification, a `List` command compiled into the program, or
   `$VISUAL`/`$EDITOR`. Nothing else, and nothing from a preference file, a
-  file name, or any environment variable but `PATH`, `VISUAL`, `EDITOR` and the
-  `XDG_*` ones.
+  file name, or any environment variable other than `VISUAL`/`EDITOR` can add a
+  command. `PATH`, `HOME` (`USERPROFILE` on Windows), `PATHEXT` and the `XDG_*`
+  variables shape the OS's own list, as for any file manager.
 - Preferences hold IDs only; an ID launches only if the source still offers it
   for that target and verb. `Layered` launches only what it offers now.
 - Paths launched are absolute, cleaned, NUL-free, a regular file (a directory
