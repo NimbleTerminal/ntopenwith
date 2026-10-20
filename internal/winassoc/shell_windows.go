@@ -20,6 +20,7 @@ const (
 
 	seeMaskClassName = 0x00000001 // SEE_MASK_CLASSNAME
 	seeMaskNoAsync   = 0x00000100 // SEE_MASK_NOASYNC
+	seeMaskFlagNoUI  = 0x00000400 // SEE_MASK_FLAG_NO_UI: fail with an error, never a dialog
 )
 
 // shellExecuteInfo is SHELLEXECUTEINFOW, which x/sys does not declare. Go
@@ -86,7 +87,9 @@ func ShellExecute(path, verb, progID string) error {
 		return err
 	}
 	info := shellExecuteInfo{
-		fMask:  seeMaskNoAsync,
+		// A failed launch returns its error rather than showing a modal
+		// dialog that would block the caller.
+		fMask:  seeMaskNoAsync | seeMaskFlagNoUI,
 		lpVerb: verbp,
 		lpFile: file,
 		nShow:  windows.SW_SHOWNORMAL,
