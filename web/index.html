@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ntopenwith</title>
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header><a class="brand" href="./">ntopenwith<span>Open and edit files with the apps the system knows.</span></a><a href="https://github.com/NimbleTerminal/ntopenwith">Source ↗</a></header>
+  <main>
+    <p class="intro">A pretend home folder and the apps a Mac reported for it: nothing here launches, and nothing is read from your computer. The status line says what would have opened.</p>
+    <section class="demo" aria-label="Live terminal example">
+      <div class="toolbar"><h1 id="title">Open or edit a file</h1><a id="restart" href="./">Restart ↻</a></div>
+      <div id="controls" role="group" aria-label="Terminal controls"></div>
+      <div class="terminal-frame"><div id="terminal"></div></div>
+      <p id="status" role="status">Starting terminal…</p>
+      <p id="help">Type to filter · Enter opens a folder, or a file with its default app · Ctrl+E edits · Alt+Enter chooses the app to open with · Alt+E the app to edit with · in that list, d saves the default and Esc closes. Click the terminal to focus.</p>
+    </section>
+  </main>
+  <footer>Powered by <a href="https://github.com/NimbleTerminal/ntfilepicker">ntfilepicker</a>, <a href="https://github.com/NimbleMarkets/go-booba">booba</a> and ghostty-web. <a href="LICENSE">Code license</a> · <a href="THIRD_PARTY_NOTICES.md">Dependency licenses</a><br>Made with ♥ and 🔥 by <a href="https://nimbleterminal.dev">Nimble Terminal</a>.</footer>
+  <script src="wasm_exec.js"></script>
+  <script type="module" src="site.js"></script>
+</body>
+</html>

@@ -38,7 +38,9 @@ tasks:
     cmds: ['go -C examples run ./choose {{.CLI_ARGS}}']
 
   clean:
-    desc: 'Remove built programs'
+    desc: 'Remove built programs and generated site files'
+    deps:
+      - clean-wasm-site
     cmds:
       - rm -rf bin .task
 
@@ -99,6 +101,55 @@ tasks:
       - go run honnef.co/go/tools/cmd/staticcheck@latest ./...
       - go -C examples run honnef.co/go/tools/cmd/staticcheck@latest ./...
 
+###############################################################################
+# Demo website via booba
+
+  build-wasm:
+    desc: 'Build the browser demo into web/demos/'
+    env:
+      GOWORK: '{{.ROOT_DIR}}/wasm.work'
+      GOOS: js
+      GOARCH: wasm
+      CGO_ENABLED: '0'
+    cmds:
+      - mkdir -p web/demos
+      - go -C examples build -mod=readonly -o ../web/demos/choose.wasm ./choose
+
+  build-wasm-site:
+    desc: 'Build the WASM demo site into web/ and export the pinned booba runtime'
+    cmds:
+      - task: build-wasm
+      - go -C examples tool booba-assets --no-index ../web/
+      - cp LICENSE.txt web/LICENSE
+      - cp THIRD_PARTY_NOTICES.md web/
+
+  check-site:
+    desc: 'Check site script syntax, required assets, and the demo under Node'
+    cmds:
+      - node --check web/site.js
+      - node scripts/check-site.mjs
+      - node scripts/smoke-demo.mjs
+
+  serve-wasm-site:
+    desc: 'Serve web/ at http://localhost:8000/ntopenwith/ (matches GH Pages prefix)'
+    deps:
+      - build-wasm-site
+    vars:
+      SERVE_DIR: /tmp/ntopenwith-site
+    cmds:
+      - mkdir -p "{{.SERVE_DIR}}"
+      - ln -sfn "$PWD/web" "{{.SERVE_DIR}}/ntopenwith"
+      - python3 -m http.server 8000 --directory "{{.SERVE_DIR}}"
+
+  clean-wasm-site:
+    desc: 'Remove generated WASM demo site artifacts'
+    cmds:
+      - rm -rf web/booba web/ghostty-web web/demos
+      - rm -f web/wasm_exec.js web/LICENSE web/THIRD_PARTY_NOTICES.md
+
+###############################################################################
+# Dependency notices and the gate
+
   notices:
     desc: 'Regenerate the dependency notices'
     cmds:
@@ -110,7 +161,7 @@ tasks:
       - go run ./internal/tools/notices | cmp -s - THIRD_PARTY_NOTICES.md
 
   ci:
-    desc: 'Check formatting, dependencies, tests, vet, platforms, the examples, notices, and staticcheck'
+    desc: 'Check formatting, dependencies, tests, vet, platforms, the examples, the site, notices, and staticcheck'
     cmds:
       - task: fmt-check
       - task: go-tidy-check
@@ -118,5 +169,7 @@ tasks:
       - task: vet
       - task: cross
       - task: build
+      - task: build-wasm-site
+      - task: check-site
       - task: notices-check
       - task: staticcheck
