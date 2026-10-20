@@ -86,7 +86,8 @@ src := ntopenwith.List(
 An app is offered only while its program is installed (`Find`, by default the
 command or the bundle), and is checked again at launch.
 `ntopenwith.TerminalEditor()` is the editor named by `$VISUAL`, else `$EDITOR`
-(an executable path, or POSIX-quoted words with no expansion, at most 8 KiB and 64
+(an executable path, or words split as a POSIX shell splits them, on
+Windows as its command lines are, with no expansion; at most 8 KiB and 64
 words); `ntopenwith.TerminalEditors()` is nvim, vim, hx, nano, micro and emacs, each
 when it is on the `PATH`. Both are for Edit of text only, and are *terminal*
 apps: `Launch` returns an unstarted `*exec.Cmd`, because only you can hand them

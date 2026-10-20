@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/google/shlex"
 )
 
 // editorSetting returns the trimmed $VISUAL, else the trimmed $EDITOR.
@@ -20,7 +18,8 @@ func editorSetting() string {
 
 // editorArgs turns an editor setting into an argv whose first word is a
 // resolved executable path. No shell is involved: the setting is either one
-// executable path or POSIX-quoted words, with no expansions.
+// executable path or words quoted as the platform quotes them (POSIX, or
+// Windows command-line rules), with no expansions.
 func editorArgs(setting string) ([]string, error) {
 	if setting == "" {
 		return nil, errors.New("set VISUAL or EDITOR to a terminal editor, for example EDITOR=nano")
@@ -29,12 +28,14 @@ func editorArgs(setting string) ([]string, error) {
 		return nil, errors.New("editor setting exceeds 8192 bytes or contains NUL")
 	}
 	// An exact executable path can contain spaces or Windows backslashes.
-	// Otherwise parse arguments with POSIX quoting, without any expansions.
+	// Otherwise split it into words as the platform does, without any
+	// expansions: POSIX quoting, or on Windows its own command-line rules,
+	// where a backslash in "C:\Program Files\..." is not an escape.
 	var argv []string
 	if executable, err := exec.LookPath(setting); err == nil {
 		argv = []string{executable}
 	} else {
-		argv, err = shlex.Split(setting)
+		argv, err = splitWords(setting)
 		if err != nil {
 			return nil, fmt.Errorf("invalid editor setting: %w", err)
 		}
