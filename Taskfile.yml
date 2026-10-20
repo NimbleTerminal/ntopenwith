@@ -7,14 +7,31 @@ env:
 
 tasks:
   default:
-    desc: 'Default task runs the "test" task'
+    desc: 'Default task runs the "test" and "build" tasks'
     deps:
       - test
+      - build
 
   list:
     desc: 'Lists available tasks'
     cmds:
       - task --list-all
+
+  build:
+    desc: 'Build the ntopen example into bin/'
+    cmds:
+      - go build -mod=readonly -o bin/ntopen ./examples/ntopen
+    sources:
+      - '**/*.go'
+      - go.mod
+      - go.sum
+    generates:
+      - bin/ntopen
+
+  clean:
+    desc: 'Remove built programs'
+    cmds:
+      - rm -rf bin .task
 
   go-tidy:
     desc: 'Go tidy all the things'
@@ -62,12 +79,24 @@ tasks:
     cmds:
       - go run honnef.co/go/tools/cmd/staticcheck@latest ./...
 
+  notices:
+    desc: 'Regenerate the dependency notices'
+    cmds:
+      - go run ./internal/tools/notices > THIRD_PARTY_NOTICES.md
+
+  notices-check:
+    desc: 'Verify that the dependency notices are current'
+    cmds:
+      - go run ./internal/tools/notices | cmp -s - THIRD_PARTY_NOTICES.md
+
   ci:
-    desc: 'Check formatting, dependencies, tests, vet, platforms, and staticcheck'
+    desc: 'Check formatting, dependencies, tests, vet, platforms, the example, notices, and staticcheck'
     cmds:
       - task: fmt-check
       - task: go-tidy-check
       - task: test-race
       - task: vet
       - task: cross
+      - task: build
+      - task: notices-check
       - task: staticcheck

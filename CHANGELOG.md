@@ -1,0 +1,24 @@
+# `ntopenwith` CHANGELOG
+
+## Unreleased
+
+First version.
+
+* Add `Target`, `Verb` (`Open`, `Edit`), `App` and `Source`: which apps can open
+  or edit a file, and how to launch one without a shell.
+* Add `system.System()`: the operating system's own handlers and defaults, with
+  Edit as a verb of its own. macOS through Launch Services (no CGO), Linux and
+  the BSDs through the XDG files, Windows through the registry and the shell;
+  empty on other platforms and under `js/wasm`. `system.Refresh()` drops the
+  five-second listings.
+* Add `List`, `ListApp`, `TerminalEditor` and `TerminalEditors`: a program's own
+  apps, and the editor named by `$VISUAL` or `$EDITOR` (for text only).
+* Add `Layered` with `Hide`, `Rename`, `Rank`, `Alias` and `Override`: one source
+  corrected by another, with old app IDs kept as aliases.
+* Add `Preferences` (IDs only) with a bounded file format, and
+  `LoadLegacyPreferences` for gloss's earlier one.
+* Add `Resolver`: the saved choice, then the OS default, for Open and Edit;
+  `ErrChoose` when Edit has no default, `ErrNoEditor` when nothing can edit the
+  file; `Choices`, `AllApps`, `SetDefault`, `SetHidden`.
+* Add `Reveal`, `Command` and `Start`.
+* Add `examples/ntopen`, a command that lists, opens and edits with the above.
