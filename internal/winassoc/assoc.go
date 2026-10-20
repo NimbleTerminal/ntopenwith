@@ -20,8 +20,9 @@ type Registry interface {
 	SubKeys(root, path string) ([]string, error)
 }
 
-// Handler is a program that opens a type: a ProgID, whose registered
-// command the shell runs, or a program named only by its file name.
+// Handler is a program that opens a type: a ProgID, or a program named by
+// its file name. Either way the shell runs the command its class registers
+// (a program's class is [AppClass]), so no command line is ever built here.
 type Handler struct {
 	// ID is "win:<ProgID>" or "win:app:<exe name>".
 	ID string
@@ -30,6 +31,18 @@ type Handler struct {
 	// Exe is the program's file name, such as "gimp.exe"; empty for a ProgID.
 	Exe string
 }
+
+// Class is the registry class whose command the shell runs for h.
+func (h Handler) Class() string {
+	if h.ProgID != "" {
+		return h.ProgID
+	}
+	return AppClass(h.Exe)
+}
+
+// AppClass is the class a program registers under its file name,
+// Applications\<exe>.
+func AppClass(exe string) string { return `Applications\` + exe }
 
 // fileExts holds the Explorer's per-user choices for each extension.
 const fileExts = `Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\`
@@ -46,9 +59,9 @@ func normExt(ext string) string {
 	return ext
 }
 
-// canEdit reports whether progID registers an edit command.
-func canEdit(r Registry, progID string) bool {
-	subs, err := r.SubKeys("HKCR", progID+`\shell\edit`)
+// hasCommand reports whether class registers a command for verb.
+func hasCommand(r Registry, class, verb string) bool {
+	subs, err := r.SubKeys("HKCR", class+`\shell\`+verb)
 	if err != nil {
 		return false
 	}
@@ -61,22 +74,23 @@ func canEdit(r Registry, progID string) bool {
 }
 
 // bareExe reports whether name is a program's file name alone, not a path,
-// and names an .exe: a batch file (.bat, .cmd, or a bare name that PATHEXT
-// could resolve to one) would run through cmd.exe, which is a shell.
+// and names an .exe, as an Applications class does: an OpenWithList entry
+// naming a batch file (.bat, .cmd) or a path is not offered.
 func bareExe(name string) bool {
-	return IsExe(name) && !strings.ContainsAny(name, `\/:`+"\x00")
+	return isExe(name) && !strings.ContainsAny(name, `\/:`+"\x00")
 }
 
-// IsExe reports whether name ends in ".exe", whatever its case.
-func IsExe(name string) bool {
+// isExe reports whether name ends in ".exe", whatever its case.
+func isExe(name string) bool {
 	return len(name) > len(".exe") && strings.EqualFold(name[len(name)-len(".exe"):], ".exe")
 }
 
 // Handlers lists the handlers of ext (case is ignored) for verb "open" or
 // "edit", each once: the ProgIDs of the user's, the machine's and the merged
-// classes' OpenWithProgids, then for "open" the programs of the user's
-// OpenWithList and the class's. For "edit" only ProgIDs that register
-// shell\edit\command are listed, and no programs.
+// classes' OpenWithProgids, then the programs of the user's OpenWithList and
+// the class's. A program is listed only when its class, [AppClass], registers
+// shell\<verb>\command; for "edit" a ProgID only when it registers
+// shell\edit\command.
 func Handlers(r Registry, ext, verb string) []Handler {
 	ext = normExt(ext)
 	if ext == "" || (verb != "open" && verb != "edit") {
@@ -103,16 +117,12 @@ func Handlers(r Registry, ext, verb string) []Handler {
 			if p == "" || strings.ContainsRune(p, 0) {
 				continue
 			}
-			if verb == "edit" && !canEdit(r, p) {
+			if verb == "edit" && !hasCommand(r, p, "edit") {
 				continue
 			}
 			add(Handler{ID: "win:" + p, ProgID: p})
 		}
 	}
-	if verb == "edit" {
-		return out
-	}
-
 	// The user's list holds a value per program, named a, b, c… and ordered
 	// by MRUList; the class's has a subkey per program.
 	var exes []string
@@ -128,7 +138,7 @@ func Handlers(r Registry, ext, verb string) []Handler {
 	subs, _ := r.SubKeys("HKCR", ext+`\OpenWithList`)
 	exes = append(exes, subs...)
 	for _, exe := range exes {
-		if bareExe(exe) {
+		if bareExe(exe) && hasCommand(r, AppClass(exe), verb) {
 			add(Handler{ID: "win:app:" + exe, Exe: exe})
 		}
 	}
@@ -151,7 +161,7 @@ func Default(r Registry, ext, verb string) (h Handler, ok bool) {
 	if err != nil || p == "" || strings.ContainsRune(p, 0) {
 		return Handler{}, false
 	}
-	if verb == "edit" && !canEdit(r, p) {
+	if verb == "edit" && !hasCommand(r, p, "edit") {
 		return Handler{}, false
 	}
 	return Handler{ID: "win:" + p, ProgID: p}, true

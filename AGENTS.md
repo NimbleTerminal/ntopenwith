@@ -59,7 +59,8 @@ CHANGELOG consistent with the code. Written for gloss to move onto
 - Decided in review, and documented as such: XDG has no Edit default
   (`ErrChoose`); an XDG `Exec` with a file code inside quotes, more than one file
   code, or a field code as the program is refused; Windows offers only `.exe`
-  programs from `OpenWithList`; "System default" runs the OS's own opener, which
+  programs from `OpenWithList` whose `Applications\<exe>` class registers the
+  verb, launched through that class; "System default" runs the OS's own opener, which
   runs executable file types, so programs must filter them (README, Safety).
 
 ## Conventions

@@ -198,9 +198,10 @@ cannot make it safe.)
 - **XDG `Exec` lines** are refused, not guessed at, when a file code (`%f %F %u
   %U`) sits inside quotes, when there is more than one file code, or when a field
   code is the program itself.
-- **Windows** offers only `.exe` programs from `OpenWithList`. A ProgID's own
-  command is run by the shell through `ShellExecuteExW`, never rebuilt by the
-  library.
+- **Windows** offers only `.exe` programs from `OpenWithList`, and only those
+  whose `Applications\<exe>` class registers the verb. A ProgID's or a
+  program's registered command is run by the shell through `ShellExecuteExW`,
+  never rebuilt by the library.
 - **GUI children** are started with no input and their output discarded, in a
   session of their own (a new process group on Windows) so that closing the
   terminal does not end them, and reaped in the background. Terminal apps are

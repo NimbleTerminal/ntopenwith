@@ -162,7 +162,9 @@ call.*)
   `win:<ProgID>` or `win:app:<exe name>` for `OpenWithList` entries.
   Launch: `ShellExecuteEx` with the verb (`open` or `edit`) and, for a
   specific app, `SEE_MASK_CLASSNAME` with its ProgID, so Windows runs its own
-  registered command.
+  registered command. A `win:app:<exe>` entry (a bare `*.exe` name) is offered
+  only when `HKCR\Applications\<exe>\shell\<verb>\command` exists, and
+  launched the same way with the class `Applications\<exe>`.
 
 All three are read on each `Apps` call with a short cache (keyed by kind or
 extension, a few seconds) that a program can drop with `Refresh()`. No

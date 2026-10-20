@@ -2,9 +2,9 @@ package system
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"slices"
+	"strings"
 
 	"nimbleterminal.dev/ntopenwith"
 	"nimbleterminal.dev/ntopenwith/internal/winassoc"
@@ -17,26 +17,21 @@ type winSource struct {
 	reg winassoc.Registry
 	// friendly names a ProgID's verb as Windows shows it.
 	friendly func(progID, verb string) string
-	// shell performs a verb on a path with a ProgID's command, or the type's
-	// own when progID is "".
-	shell func(path, verb, progID string) error
-	// lookPath finds a program named by its file name.
-	lookPath func(string) (string, error)
+	// shell performs a verb on a path with the command a class registers,
+	// or the type's own when class is "".
+	shell func(path, verb, class string) error
 	// listings keeps recent answers; Refresh clears the process's one.
 	listings *cache
 }
 
-func newWinSource(reg winassoc.Registry, friendly func(progID, verb string) string, shell func(path, verb, progID string) error, lookPath func(string) (string, error), listings *cache) *winSource {
-	return &winSource{reg: reg, friendly: friendly, shell: shell, lookPath: lookPath, listings: listings}
+func newWinSource(reg winassoc.Registry, friendly func(progID, verb string) string, shell func(path, verb, class string) error, listings *cache) *winSource {
+	return &winSource{reg: reg, friendly: friendly, shell: shell, listings: listings}
 }
 
 // winChoice is an app offered, with its handler (zero for the system default).
 type winChoice struct {
 	app     ntopenwith.App
 	handler winassoc.Handler
-	// exe is the program a win:app: handler resolved to on PATH, or "" when
-	// it was not found there.
-	exe string
 }
 
 // offer reads what the registry offers for t and v, in the order to show:
@@ -67,23 +62,14 @@ func (s *winSource) offer(t ntopenwith.Target, v ntopenwith.Verb) []winChoice {
 		system.app.Default = !hasDef
 		out = append(out, system)
 	}
+	// A program is offered only when its Applications class registers the
+	// verb, and is launched through that class, so Windows runs the command
+	// it registered; nothing here builds a command line.
 	for _, h := range winassoc.Handlers(s.reg, ext, verb) {
-		if hasDef && h.ID == def.ID {
+		if hasDef && strings.EqualFold(h.ID, def.ID) {
 			continue
 		}
-		c := winChoice{app: ntopenwith.App{ID: h.ID}, handler: h}
-		if h.Exe != "" {
-			// Only an .exe runs without a shell: a name PATH resolves to
-			// anything else, such as a batch file, is not offered.
-			exe, err := s.lookPath(h.Exe)
-			if err == nil && !winassoc.IsExe(exe) {
-				continue
-			}
-			if err == nil {
-				c.exe = exe
-			}
-		}
-		out = append(out, c)
+		out = append(out, winChoice{app: ntopenwith.App{ID: h.ID}, handler: h})
 	}
 	return out
 }
@@ -93,9 +79,8 @@ func (s *winSource) name(h winassoc.Handler, verb ntopenwith.Verb) string {
 	if h.ProgID != "" {
 		return s.friendly(h.ProgID, string(verb))
 	}
-	// A program's own class is Applications\<exe name>.
-	class := `Applications\` + h.Exe
-	if n := s.friendly(class, string(ntopenwith.Open)); n != class {
+	class := h.Class()
+	if n := s.friendly(class, string(verb)); n != class {
 		return n
 	}
 	return h.Exe
@@ -139,22 +124,15 @@ func (s *winSource) Launch(ctx context.Context, t ntopenwith.Target, v ntopenwit
 	// Read the registry again rather than trust a listing that may be old:
 	// the app must be offered now, for this file and verb.
 	offered := s.offer(t, v)
-	i := slices.IndexFunc(offered, func(c winChoice) bool { return c.app.ID == app.ID })
+	i := slices.IndexFunc(offered, func(c winChoice) bool { return strings.EqualFold(c.app.ID, app.ID) })
 	if i < 0 {
 		return nil, ntopenwith.ErrNotOffered
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	h := offered[i].handler
-	switch {
-	case app.ID == ntopenwith.SystemID:
+	if offered[i].app.ID == ntopenwith.SystemID {
 		return nil, s.shell(path, string(ntopenwith.Open), "")
-	case h.Exe != "":
-		if offered[i].exe == "" {
-			return nil, fmt.Errorf("%s: not found on PATH", h.Exe)
-		}
-		return nil, start([]string{offered[i].exe, path})
 	}
-	return nil, s.shell(path, string(v), h.ProgID)
+	return nil, s.shell(path, string(v), offered[i].handler.Class())
 }

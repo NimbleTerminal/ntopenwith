@@ -91,10 +91,13 @@ keep in mind:
 
 The registry and `ShellExecuteExW` come from `golang.org/x/sys/windows`. Handlers
 are read from the extension's `UserChoice`, `OpenWithProgids` and `OpenWithList`
-(user and machine); the ProgID's `shell\edit` verb gives Edit. A program that has
-only an `.exe` name is listed unless it resolves on the `PATH` to something other
-than an `.exe` (a batch file, say), which is dropped; if it does not resolve at
-all, it is listed and Launch fails with "not found on PATH".
+(user and machine); the ProgID's `shell\edit` verb gives Edit. An `OpenWithList`
+program (`win:app:<exe>`, a bare `*.exe` name) is listed only when its class,
+`HKCR\Applications\<exe>`, registers `shell\open\command` (for Edit,
+`shell\edit\command`): that is where GUI programs register, not the `PATH`.
+It is launched with `ShellExecuteExW` and `SEE_MASK_CLASSNAME` on that class, so
+Windows runs the command the program registered; the library builds no command
+line and never starts the program itself, so a batch file cannot be reached.
 
 ## Releasing
 

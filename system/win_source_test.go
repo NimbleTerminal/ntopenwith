@@ -71,14 +71,13 @@ func (f *fakeReg) SubKeys(root, path string) ([]string, error) {
 	return slices.Compact(subs), nil
 }
 
-// winFixture is a .png that Viewer (the person's choice), Paint (which also
-// edits) and gimp.exe open, with fakes for the shell and PATH.
+// winFixture is a .png that Viewer (the person's choice), Paint and gimp.exe
+// (which also edit) open, with a fake for the shell.
 type winFixture struct {
 	src     *winSource
 	reg     *fakeReg
 	png     string
-	shelled [][]string // path, verb, ProgID
-	path    map[string]string
+	shelled [][]string // path, verb, class
 }
 
 const userExts = `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\`
@@ -93,14 +92,12 @@ func newWinFixture(t *testing.T) *winFixture {
 			userExts + `.png\OpenWithList`:          {{"a", "gimp.exe"}, {"b", `C:\evil\x.exe`}, {"c", "foo.cmd"}, {"d", "foo"}, {"e", "tool.exe"}, {"MRUList", "abcde"}},
 			`HKCR\Paint.Picture\shell\edit\command`: {{"", "paint.exe %1"}},
 			`HKCR\Viewer.PNG\shell\open\command`:    {{"", "viewer.exe %1"}},
+			// Programs are offered by their Applications class; tool.exe
+			// has none, so Windows could not run it and it is not offered.
+			`HKCR\Applications\gimp.exe\shell\open\command`: {{"", `"C:\GIMP\gimp.exe" "%1"`}},
+			`HKCR\Applications\gimp.exe\shell\edit\command`: {{"", `"C:\GIMP\gimp.exe" "%1"`}},
+			`HKCR\Applications\foo.cmd\shell\open\command`:  {{"", "foo.cmd %1"}},
 		}},
-		path: map[string]string{
-			"gimp.exe": `C:\Program Files\GIMP\gimp.exe`,
-			"foo.cmd":  `C:\bin\foo.cmd`,
-			"foo":      `C:\bin\foo.bat`,
-			// A name that PATH resolves to a batch file is never offered.
-			"tool.exe": `C:\bin\tool.exe.bat`,
-		},
 	}
 	f.png = filepath.Join(t.TempDir(), "x.png")
 	if err := os.WriteFile(f.png, []byte("png"), 0o644); err != nil {
@@ -116,13 +113,7 @@ func newWinFixture(t *testing.T) *winFixture {
 		f.shelled = append(f.shelled, []string{path, verb, progID})
 		return nil
 	}
-	look := func(exe string) (string, error) {
-		if p, ok := f.path[exe]; ok {
-			return p, nil
-		}
-		return "", errors.New("not found")
-	}
-	f.src = newWinSource(f.reg, friendly, shell, look, new(cache))
+	f.src = newWinSource(f.reg, friendly, shell, new(cache))
 	return f
 }
 
@@ -147,20 +138,22 @@ func TestWindowsSourceWithFake(t *testing.T) {
 		}
 	}
 
-	// Edit: only ProgIDs that edit; Viewer cannot, so there is no default.
+	// Edit: only ProgIDs and programs that edit; Viewer cannot, so there is
+	// no default.
 	apps, err = f.src.Apps(ctx, tgt, ntopenwith.Edit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := ids(apps), []string{"win:Paint.Picture"}; !reflect.DeepEqual(got, want) {
+	if got, want := ids(apps), []string{"win:Paint.Picture", "win:app:gimp.exe"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Edit ids = %v, want %v", got, want)
 	}
-	if apps[0].Default || apps[0].Name != "Paint.Picture (edit)" {
-		t.Errorf("Edit app = %+v", apps[0])
+	if apps[0].Default || apps[0].Name != "Paint.Picture (edit)" || apps[1].Default || apps[1].Name != "gimp.exe" {
+		t.Errorf("Edit apps = %+v", apps)
 	}
 
-	// Launch: the shell for ProgIDs and the system default, the program
-	// found on PATH for a program.
+	// Launch: everything through the shell, a program with its Applications
+	// class, so Windows runs the command it registered; nothing is started
+	// directly.
 	got := capture(t)
 	for _, c := range []struct {
 		v  ntopenwith.Verb
@@ -170,20 +163,25 @@ func TestWindowsSourceWithFake(t *testing.T) {
 		{ntopenwith.Open, "win:Viewer.PNG"},
 		{ntopenwith.Edit, "win:Paint.Picture"},
 		{ntopenwith.Open, "win:app:gimp.exe"},
+		{ntopenwith.Edit, "win:app:gimp.exe"},
 	} {
 		if cmd, err := f.src.Launch(ctx, tgt, c.v, ntopenwith.App{ID: c.id}); err != nil || cmd != nil {
 			t.Fatalf("Launch %s %s = %v, %v", c.v, c.id, cmd, err)
 		}
 	}
-	if want := [][]string{{f.png, "open", ""}, {f.png, "open", "Viewer.PNG"}, {f.png, "edit", "Paint.Picture"}}; !reflect.DeepEqual(f.shelled, want) {
+	if want := [][]string{
+		{f.png, "open", ""}, {f.png, "open", "Viewer.PNG"}, {f.png, "edit", "Paint.Picture"},
+		{f.png, "open", `Applications\gimp.exe`}, {f.png, "edit", `Applications\gimp.exe`},
+	}; !reflect.DeepEqual(f.shelled, want) {
 		t.Errorf("shell ran %v, want %v", f.shelled, want)
 	}
-	if want := [][]string{{`C:\Program Files\GIMP\gimp.exe`, f.png}}; !reflect.DeepEqual(*got, want) {
-		t.Errorf("started %v, want %v", *got, want)
+	if len(*got) != 0 {
+		t.Errorf("started %v, want nothing started directly", *got)
 	}
 
 	// Not offered: the system default or a viewer for Edit, a program named
-	// by a path, an ID never listed.
+	// by a path, a batch file, a program with no Applications class, an ID
+	// never listed.
 	f.shelled, *got = nil, nil
 	for _, c := range []struct {
 		v  ntopenwith.Verb
@@ -191,7 +189,6 @@ func TestWindowsSourceWithFake(t *testing.T) {
 	}{
 		{ntopenwith.Edit, "system"},
 		{ntopenwith.Edit, "win:Viewer.PNG"},
-		{ntopenwith.Edit, "win:app:gimp.exe"},
 		{ntopenwith.Open, `win:app:C:\evil\x.exe`},
 		{ntopenwith.Open, "win:app:foo.cmd"},
 		{ntopenwith.Open, "win:app:foo"},
@@ -203,17 +200,12 @@ func TestWindowsSourceWithFake(t *testing.T) {
 		}
 	}
 
-	// Launch looks the program up again: one that now resolves to a batch
-	// file is refused although the listing offered it.
-	f.path["gimp.exe"] = `C:\evil\gimp.exe.bat`
+	// Launch reads the program's class again: once it no longer registers
+	// an open command, the program is refused although the listing
+	// offered it.
+	delete(f.reg.keys, `HKCR\Applications\gimp.exe\shell\open\command`)
 	if _, err := f.src.Launch(ctx, tgt, ntopenwith.Open, ntopenwith.App{ID: "win:app:gimp.exe"}); !errors.Is(err, ntopenwith.ErrNotOffered) {
-		t.Errorf("Launch of a program resolving to a batch file: err = %v, want ErrNotOffered", err)
-	}
-
-	// A program no longer on PATH is not started.
-	delete(f.path, "gimp.exe")
-	if _, err := f.src.Launch(ctx, tgt, ntopenwith.Open, ntopenwith.App{ID: "win:app:gimp.exe"}); err == nil {
-		t.Error("a program missing from PATH launched")
+		t.Errorf("Launch of a program whose class is gone: err = %v, want ErrNotOffered", err)
 	}
 
 	// Launch reads the registry again: a handler removed since the listing
@@ -250,7 +242,7 @@ func TestWindowsSourceDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := ids(apps), []string{"win:pngfile", "win:Paint.Picture"}; !reflect.DeepEqual(got, want) || !apps[0].Default || apps[1].Default {
+	if got, want := ids(apps), []string{"win:pngfile", "win:Paint.Picture", "win:app:gimp.exe"}; !reflect.DeepEqual(got, want) || !apps[0].Default || apps[1].Default || apps[2].Default {
 		t.Fatalf("Edit = %+v, want %v with the first marked", apps, want)
 	}
 

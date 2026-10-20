@@ -87,7 +87,14 @@ func registryFixture() *fakeRegistry {
 		`HKCR\.png\OpenWithList\mspaint.exe`:     nil,
 		`HKCU\` + fileExts + `.png\OpenWithList`: {{"a", "gimp.exe"}, {"b", `C:\evil\x.exe`}, {"c", "GIMP.EXE"}, {"d", ""}, {"e", "foo.cmd"}, {"f", "foo"}, {"g", "run.BAT"}, {"h", ".exe"}, {"MRUList", "abcdefgh"}},
 		`HKCR\.png\OpenWithList\script.cmd`:      nil,
-		`HKCU\` + fileExts + `.png\UserChoice`:   {{"Hash", "x"}, {"ProgId", "Viewer.PNG"}},
+		`HKCR\.png\OpenWithList\unknown.exe`:     nil, // no Applications class
+
+		// A program is offered for a verb its Applications class registers.
+		`HKCR\Applications\gimp.exe\shell\open\command`:    {{"", "gimp.exe %1"}},
+		`HKCR\Applications\mspaint.exe\shell\open\command`: {{"", "mspaint.exe %1"}},
+		`HKCR\Applications\mspaint.exe\shell\edit\command`: {{"", "mspaint.exe %1"}},
+		`HKCR\Applications\run.BAT\shell\open\command`:     {{"", "run.bat %1"}},
+		`HKCU\` + fileExts + `.png\UserChoice`:             {{"Hash", "x"}, {"ProgId", "Viewer.PNG"}},
 
 		`HKCR\pngfile\shell\edit\command`:       {{"", "paint.exe %1"}},
 		`HKCR\Paint.Picture\shell\edit\command`: {{"", "paint.exe %1"}},
@@ -110,9 +117,10 @@ func TestHandlersFromRegistry(t *testing.T) {
 	r := registryFixture()
 
 	// Open: the ProgIDs of user, machine and merged classes, then the
-	// programs; each once, whatever its case; a program named by a path, one
-	// that is not an .exe (a batch file runs through cmd.exe), an empty name
-	// and the MRU list are skipped.
+	// programs whose Applications class opens; each once, whatever its case;
+	// a program named by a path, one that is not an .exe (a batch file runs
+	// through cmd.exe), one with no class, an empty name and the MRU list are
+	// skipped.
 	open := Handlers(r, ".png", "open")
 	want := []Handler{
 		{ID: "win:Paint.Picture", ProgID: "Paint.Picture"},
@@ -130,8 +138,8 @@ func TestHandlersFromRegistry(t *testing.T) {
 		t.Errorf(".PNG = %v, want the same as .png: %v", handlerIDs(upper), handlerIDs(open))
 	}
 
-	// Edit: only ProgIDs with a shell\edit\command, and no programs.
-	if got, want := handlerIDs(Handlers(r, ".png", "edit")), []string{"win:Paint.Picture"}; !reflect.DeepEqual(got, want) {
+	// Edit: only ProgIDs and programs with a shell\edit\command.
+	if got, want := handlerIDs(Handlers(r, ".png", "edit")), []string{"win:Paint.Picture", "win:app:mspaint.exe"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("edit = %v, want %v", got, want)
 	}
 
