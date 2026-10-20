@@ -11,8 +11,6 @@ import (
 )
 
 // editorSetting returns the trimmed $VISUAL, else the trimmed $EDITOR.
-//
-//lint:ignore U1000 used by the terminal-editor ListApp, which comes in a later change
 func editorSetting() string {
 	if value := strings.TrimSpace(os.Getenv("VISUAL")); value != "" {
 		return value
@@ -23,8 +21,6 @@ func editorSetting() string {
 // editorArgs turns an editor setting into an argv whose first word is a
 // resolved executable path. No shell is involved: the setting is either one
 // executable path or POSIX-quoted words, with no expansions.
-//
-//lint:ignore U1000 used by the terminal-editor ListApp, which comes in a later change
 func editorArgs(setting string) ([]string, error) {
 	if setting == "" {
 		return nil, errors.New("set VISUAL or EDITOR to a terminal editor, for example EDITOR=nano")

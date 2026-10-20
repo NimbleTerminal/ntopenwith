@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -15,7 +16,8 @@ const placeholder = "{}"
 // An argument that is exactly "{}" becomes path; with none, path is appended.
 // The program (argv[0]) must be non-empty and free of "{}", and no other
 // argument may hold "{}" inside longer text. path must be absolute and free
-// of NUL bytes. argv is not modified.
+// of NUL bytes. argv is not modified. Callers validate the path with
+// [CheckPath] first.
 func Command(argv []string, path string) ([]string, error) {
 	if len(argv) == 0 || argv[0] == "" || strings.Contains(argv[0], placeholder) {
 		return nil, errors.New("invalid command: no program")
@@ -43,6 +45,9 @@ func Command(argv []string, path string) ([]string, error) {
 // Start runs argv directly, with no shell and no input or output, and does
 // not wait for it to finish: the child is reaped in the background.
 func Start(argv []string) error {
+	if runtime.GOOS == "js" {
+		return ErrUnsupported
+	}
 	if len(argv) == 0 || argv[0] == "" {
 		return errors.New("invalid command: no program")
 	}

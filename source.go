@@ -38,7 +38,6 @@ type App struct {
 	// Default is true for the app the platform would use unasked.
 	Default bool
 
-	//lint:ignore U1000 set and read by Layered, which comes in a later change
 	from Source // the source that offered it
 }
 
