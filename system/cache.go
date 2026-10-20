@@ -38,6 +38,17 @@ type cache struct {
 // fill runs with the lock held, so concurrent callers of one cache wait
 // rather than ask the OS twice.
 func (c *cache) get(key string, v ntopenwith.Verb, fill func() ([]ntopenwith.App, error)) ([]ntopenwith.App, error) {
+	return c.lookup(key, v, nil, fill)
+}
+
+// getSince is get for a fill built from data read when the cache was at
+// generation gen. If the cache has been cleared since, the fill's answer is
+// returned but not kept, so a Refresh is never undone by older data.
+func (c *cache) getSince(gen uint64, key string, v ntopenwith.Verb, fill func() ([]ntopenwith.App, error)) ([]ntopenwith.App, error) {
+	return c.lookup(key, v, &gen, fill)
+}
+
+func (c *cache) lookup(key string, v ntopenwith.Verb, gen *uint64, fill func() ([]ntopenwith.App, error)) ([]ntopenwith.App, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	k := cacheKey{key, v}
@@ -48,6 +59,9 @@ func (c *cache) get(key string, v ntopenwith.Verb, fill func() ([]ntopenwith.App
 	apps, err := fill()
 	if err != nil {
 		return nil, err
+	}
+	if gen != nil && *gen != c.gen {
+		return append([]ntopenwith.App(nil), apps...), nil
 	}
 	if c.entries == nil {
 		c.entries = make(map[cacheKey]cacheEntry)

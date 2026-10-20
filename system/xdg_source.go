@@ -43,20 +43,21 @@ type choice struct {
 }
 
 // cachedIndex returns the index read within the cache's lifetime, so a
-// listing for each row of a file browser reads the XDG files once.
-func (s *xdgSource) cachedIndex() (*xdg.Index, error) {
+// listing for each row of a file browser reads the XDG files once, and the
+// cache generation it belongs to.
+func (s *xdgSource) cachedIndex() (*xdg.Index, uint64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	gen := s.listings.generation()
 	if s.index != nil && s.indexGen == gen && clock().Before(s.indexEnd) {
-		return s.index, nil
+		return s.index, gen, nil
 	}
 	ix, err := s.load()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	s.index, s.indexGen, s.indexEnd = ix, gen, clock().Add(lifetime)
-	return ix, nil
+	return ix, gen, nil
 }
 
 // mimeOf is the MIME type of the target: a folder's, or that of Ext, else
@@ -127,11 +128,13 @@ func (s *xdgSource) Apps(ctx context.Context, t ntopenwith.Target, v ntopenwith.
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	ix, err := s.cachedIndex()
+	ix, gen, err := s.cachedIndex()
 	if err != nil {
 		return nil, err
 	}
-	return s.listings.get(mimeOf(ix, t), v, func() ([]ntopenwith.App, error) {
+	// A Refresh after the index was read must not be undone by storing a
+	// listing built from it.
+	return s.listings.getSince(gen, mimeOf(ix, t), v, func() ([]ntopenwith.App, error) {
 		// Never a partial list: a caller that gave up gets the error and
 		// nothing is kept.
 		if err := ctx.Err(); err != nil {

@@ -96,3 +96,31 @@ func TestSystemIsOnePerProcess(t *testing.T) {
 		t.Error("System must return the same non-nil Source each call")
 	}
 }
+
+// A listing built from data read before a clear is returned but not kept,
+// so the clear is not undone.
+func TestCacheGetSinceSkipsStaleStore(t *testing.T) {
+	var c cache
+	fills := 0
+	fill := func() ([]ntopenwith.App, error) {
+		fills++
+		return []ntopenwith.App{{ID: "a"}}, nil
+	}
+	gen := c.generation()
+	c.clear() // A Refresh between reading the index and storing.
+	if apps, err := c.getSince(gen, "text/plain", ntopenwith.Open, fill); err != nil || len(apps) != 1 {
+		t.Fatalf("getSince = %v, %v", apps, err)
+	}
+	if _, err := c.getSince(c.generation(), "text/plain", ntopenwith.Open, fill); err != nil {
+		t.Fatal(err)
+	}
+	if fills != 2 {
+		t.Fatalf("filled %d times, want 2: the stale answer was kept", fills)
+	}
+	if _, err := c.getSince(c.generation(), "text/plain", ntopenwith.Open, fill); err != nil {
+		t.Fatal(err)
+	}
+	if fills != 2 {
+		t.Fatalf("filled %d times, want 2: a current answer was not kept", fills)
+	}
+}
