@@ -18,15 +18,24 @@ tasks:
       - task --list-all
 
   build:
-    desc: 'Build the ntopen example into bin/'
+    desc: 'Build the examples into bin/'
     cmds:
-      - go build -mod=readonly -o bin/ntopen ./examples/ntopen
+      - go -C examples build -mod=readonly -o ../bin/ntopen ./ntopen
+      - go -C examples build -mod=readonly -o ../bin/choose ./choose
     sources:
       - '**/*.go'
       - go.mod
       - go.sum
+      - examples/go.mod
+      - examples/go.sum
     generates:
       - bin/ntopen
+      - bin/choose
+
+  choose:
+    desc: 'Run the choose example (-- -pretend for a made-up home folder)'
+    interactive: true
+    cmds: ['go -C examples run ./choose {{.CLI_ARGS}}']
 
   clean:
     desc: 'Remove built programs'
@@ -37,21 +46,25 @@ tasks:
     desc: 'Go tidy all the things'
     cmds:
       - go mod tidy
+      - go -C examples mod tidy
 
   test:
     desc: 'Run the tests'
     cmds:
       - go test -mod=readonly ./...
+      - go -C examples test -mod=readonly ./...
 
   test-race:
     desc: 'Run the tests with the race detector'
     cmds:
       - go test -mod=readonly -race ./...
+      - go -C examples test -mod=readonly -race ./...
 
   vet:
     desc: 'Run go vet'
     cmds:
       - go vet -mod=readonly ./...
+      - go -C examples vet -mod=readonly ./...
 
   fmt-check:
     desc: 'Fail if any file is not gofmt-formatted'
@@ -62,6 +75,7 @@ tasks:
     desc: 'Fail if go.mod or go.sum need tidying'
     cmds:
       - go mod tidy -diff
+      - go -C examples mod tidy -diff
 
   cross:
     desc: 'Vet and build for every supported platform without CGO'
@@ -73,11 +87,17 @@ tasks:
       - GOOS=darwin go vet -mod=readonly ./...
       - GOOS=freebsd go build -mod=readonly ./...
       - GOOS=js GOARCH=wasm go vet -mod=readonly ./...
+      # The examples, natively; their js/wasm build is build-wasm's.
+      - GOOS=windows go -C examples vet -mod=readonly ./...
+      - GOOS=linux go -C examples vet -mod=readonly ./...
+      - GOOS=darwin go -C examples vet -mod=readonly ./...
+      - GOOS=freebsd go -C examples build -mod=readonly ./...
 
   staticcheck:
     desc: 'Run staticcheck'
     cmds:
       - go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+      - go -C examples run honnef.co/go/tools/cmd/staticcheck@latest ./...
 
   notices:
     desc: 'Regenerate the dependency notices'
@@ -90,7 +110,7 @@ tasks:
       - go run ./internal/tools/notices | cmp -s - THIRD_PARTY_NOTICES.md
 
   ci:
-    desc: 'Check formatting, dependencies, tests, vet, platforms, the example, notices, and staticcheck'
+    desc: 'Check formatting, dependencies, tests, vet, platforms, the examples, notices, and staticcheck'
     cmds:
       - task: fmt-check
       - task: go-tidy-check

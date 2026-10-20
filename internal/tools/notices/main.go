@@ -1,6 +1,7 @@
 // notices writes THIRD_PARTY_NOTICES.md: the license of every module
-// linked into the library or the example on any platform it supports, read
-// from the module cache, so that what a program carries is what it credits.
+// linked into the library on any platform it supports, and then of those the
+// examples and the browser demo add, read from the module cache, so that what
+// a program carries is what it credits.
 //
 //	go run ./internal/tools/notices > THIRD_PARTY_NOTICES.md
 package main
@@ -29,39 +30,35 @@ func main() {
 	}
 }
 
+// build is one go list of the dependencies: packages in a module folder,
+// for a platform, with the environment given.
+type build struct {
+	dir, goos, goarch string
+	env               []string
+	pkgs              []string
+}
+
 func run() error {
-	modules := map[string]module{}
-	// The libraries and the example, as built for each platform the module supports.
-	for _, build := range []struct{ goos, goarch string }{
-		{"darwin", "arm64"},
-		{"linux", "amd64"},
-		{"windows", "amd64"},
-		{"freebsd", "amd64"},
-		{"js", "wasm"},
-	} {
-		// Credit versioned forks separately; local replacements keep their module name.
-		args := []string{"list", "-deps", "-f", `{{with .Module}}{{$m := .}}{{with .Replace}}{{if .Version}}{{$m = .}}{{end}}{{end}}{{with $m}}{{.Path}}	{{.Version}}	{{.Dir}}{{end}}{{end}}`, "./..."}
-		cmd := exec.Command("go", args...)
-		cmd.Env = append(os.Environ(), "GOWORK=off", "CGO_ENABLED=0", "GOOS="+build.goos, "GOARCH="+build.goarch)
-		out, err := cmd.Output()
-		if err != nil {
-			return fmt.Errorf("go list for %s/%s: %w", build.goos, build.goarch, err)
-		}
-		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			fields := strings.Split(line, "\t")
-			if len(fields) != 3 || fields[2] == "" || strings.HasPrefix(fields[0], "nimbleterminal.dev/ntopenwith") {
-				continue
-			}
-			if _, seen := modules[fields[0]]; !seen {
-				modules[fields[0]] = module{fields[0], fields[1], fields[2]}
-			}
-		}
+	// The library, as built for each platform the module supports.
+	var library []build
+	for _, p := range [][2]string{{"darwin", "arm64"}, {"linux", "amd64"}, {"windows", "amd64"}, {"freebsd", "amd64"}, {"js", "wasm"}} {
+		library = append(library, build{".", p[0], p[1], []string{"GOWORK=off"}, []string{"./..."}})
 	}
-	var paths []string
-	for p := range modules {
-		paths = append(paths, p)
+	// The examples natively, and the browser demo with the forks of wasm.work.
+	var examples []build
+	for _, p := range [][2]string{{"darwin", "arm64"}, {"linux", "amd64"}, {"windows", "amd64"}, {"freebsd", "amd64"}} {
+		examples = append(examples, build{"examples", p[0], p[1], []string{"GOWORK=off"}, []string{"./..."}})
 	}
-	sort.Strings(paths)
+	examples = append(examples, build{"examples", "js", "wasm", []string{"GOWORK=" + mustWorkspace()}, []string{"./choose"}})
+
+	libraryModules, err := list(library, nil)
+	if err != nil {
+		return err
+	}
+	exampleModules, err := list(examples, libraryModules)
+	if err != nil {
+		return err
+	}
 
 	var b bytes.Buffer
 	b.WriteString(`# Third-party notices
@@ -82,6 +79,60 @@ internal/tools/notices.
 		return err
 	}
 	section(&b, "The Go runtime and standard library", "https://go.dev", text)
+	if err := sections(&b, libraryModules); err != nil {
+		return err
+	}
+	b.WriteString(`# The examples and the browser demo
+
+The programs in examples/, and the browser demo built from examples/choose,
+also link these.
+
+`)
+	if err := sections(&b, exampleModules); err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(append(bytes.TrimRight(b.Bytes(), "\n"), '\n'))
+	return err
+}
+
+// list returns the modules the builds link, leaving out this module and those
+// already in seen.
+func list(builds []build, seen map[string]module) (map[string]module, error) {
+	modules := map[string]module{}
+	for _, build := range builds {
+		// Credit versioned forks separately; local replacements keep their module name.
+		args := append([]string{"list", "-deps", "-f", `{{with .Module}}{{$m := .}}{{with .Replace}}{{if .Version}}{{$m = .}}{{end}}{{end}}{{with $m}}{{.Path}}	{{.Version}}	{{.Dir}}{{end}}{{end}}`}, build.pkgs...)
+		cmd := exec.Command("go", args...)
+		cmd.Dir = build.dir
+		cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+build.goos, "GOARCH="+build.goarch)
+		cmd.Env = append(cmd.Env, build.env...)
+		out, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("go list in %s for %s/%s: %w", build.dir, build.goos, build.goarch, err)
+		}
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			fields := strings.Split(line, "\t")
+			if len(fields) != 3 || fields[2] == "" || strings.HasPrefix(fields[0], "nimbleterminal.dev/ntopenwith") {
+				continue
+			}
+			if _, ok := seen[fields[0]]; ok {
+				continue
+			}
+			if _, ok := modules[fields[0]]; !ok {
+				modules[fields[0]] = module{fields[0], fields[1], fields[2]}
+			}
+		}
+	}
+	return modules, nil
+}
+
+// sections writes the license of each module, sorted by path.
+func sections(b *bytes.Buffer, modules map[string]module) error {
+	var paths []string
+	for p := range modules {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
 	var missing []string
 	for _, p := range paths {
 		m := modules[p]
@@ -103,13 +154,12 @@ internal/tools/notices.
 			missing = append(missing, p)
 			continue
 		}
-		section(&b, m.path+" "+m.version, "", bytes.Join(texts, []byte("\n\n")))
+		section(b, m.path+" "+m.version, "", bytes.Join(texts, []byte("\n\n")))
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("no license file in: %s", strings.Join(missing, ", "))
 	}
-	_, err = os.Stdout.Write(append(bytes.TrimRight(b.Bytes(), "\n"), '\n'))
-	return err
+	return nil
 }
 
 // Homebrew keeps Go in libexec and its license in the enclosing keg.
@@ -138,4 +188,12 @@ func section(b *bytes.Buffer, title, note string, text []byte) {
 	b.WriteString("```\n")
 	b.Write(bytes.TrimRight(text, "\n"))
 	b.WriteString("\n```\n\n")
+}
+
+func mustWorkspace() string {
+	p, err := filepath.Abs("wasm.work")
+	if err != nil {
+		panic(err)
+	}
+	return p
 }
