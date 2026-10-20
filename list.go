@@ -19,7 +19,7 @@ type ListApp struct {
 	// Verbs are the verbs the app is offered for.
 	Verbs []Verb
 	// Kinds are the Target.Kind or Target.Type values the app is offered for;
-	// empty means every file.
+	// kinds and extensions match without regard to case; empty means every file.
 	Kinds []string
 	// Text offers the app only for text targets.
 	Text bool
@@ -75,11 +75,7 @@ func (a *ListApp) offered(t Target, v Verb) bool {
 	if a.Text && !t.Text {
 		return false
 	}
-	if len(a.Kinds) == 0 {
-		return true
-	}
-	return (t.Kind != "" && slices.Contains(a.Kinds, t.Kind)) ||
-		(t.Type() != "" && slices.Contains(a.Kinds, t.Type()))
+	return t.matchesKinds(a.Kinds)
 }
 
 // available reports whether the app can be launched now.

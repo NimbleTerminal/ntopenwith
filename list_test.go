@@ -119,6 +119,25 @@ func TestListOffers(t *testing.T) {
 	}
 }
 
+func TestListKindsIgnoreCase(t *testing.T) {
+	stubLookPath(t, "viewer")
+	for _, tt := range []struct {
+		kind   string
+		target Target
+	}{
+		{".PNG", Target{Path: "/x/a.png"}},
+		{".png", Target{Ext: ".PNG"}},
+		{"IMAGE/*", Target{Kind: "image/*"}},
+		{"image/*", Target{Kind: "IMAGE/*"}},
+	} {
+		src := List(ListApp{ID: "v", Verbs: []Verb{Open}, Kinds: []string{tt.kind}, Command: []string{"viewer"}})
+		apps, err := src.Apps(context.Background(), tt.target, Open)
+		if err != nil || len(apps) != 1 || apps[0].ID != "v" {
+			t.Errorf("kind %q, target %+v: apps = %v, err = %v", tt.kind, tt.target, apps, err)
+		}
+	}
+}
+
 func TestListLaunch(t *testing.T) {
 	stubLookPath(t, "viewer")
 	bundles := t.TempDir()

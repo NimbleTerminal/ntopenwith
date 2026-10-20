@@ -40,7 +40,8 @@ func Hide(ids ...string) Source { return HideFor(nil, nil, ids...) }
 
 // HideFor removes the apps with these IDs only when the verb is one of verbs
 // (none means both) and the target's Kind or Type is one of kinds (none means
-// every type): HideFor([]Verb{Edit}, []string{".png"}, id) keeps the app for
+// every type), matching kinds and extensions without regard to case.
+// HideFor([]Verb{Edit}, []string{".png"}, id) keeps the app for
 // opening a PNG but not for editing one.
 func HideFor(verbs []Verb, kinds []string, ids ...string) Source {
 	return &hide{verbs: slices.Clone(verbs), kinds: slices.Clone(kinds), ids: slices.Clone(ids)}
@@ -50,11 +51,7 @@ func (h *hide) applies(t Target, v Verb) bool {
 	if len(h.verbs) > 0 && !slices.Contains(h.verbs, v) {
 		return false
 	}
-	if len(h.kinds) == 0 {
-		return true
-	}
-	return (t.Kind != "" && slices.Contains(h.kinds, t.Kind)) ||
-		(t.Type() != "" && slices.Contains(h.kinds, t.Type()))
+	return t.matchesKinds(h.kinds)
 }
 
 func (h *hide) apply(apps []App, t Target, v Verb) []App {

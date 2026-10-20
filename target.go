@@ -43,6 +43,21 @@ func (t Target) Type() string {
 	return strings.ToLower(ext)
 }
 
+// matchesKinds matches Kind or Type, with an empty list accepting every target.
+func (t Target) matchesKinds(kinds []string) bool {
+	if len(kinds) == 0 {
+		return true
+	}
+	ext := t.Type()
+	for _, kind := range kinds {
+		if (t.Kind != "" && strings.EqualFold(kind, t.Kind)) ||
+			(ext != "" && strings.EqualFold(kind, ext)) {
+			return true
+		}
+	}
+	return false
+}
+
 // Key is what preferences and List entries are matched on: Kind if set,
 // else Type.
 func (t Target) Key() string {

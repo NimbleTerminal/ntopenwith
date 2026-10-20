@@ -309,6 +309,10 @@ func TestHideForScopesByVerbAndKind(t *testing.T) {
 		want bool // still listed
 	}{
 		{HideFor(nil, []string{".png"}, "qt"), png, Open, false},
+		{HideFor(nil, []string{".PNG"}, "qt"), png, Open, false},
+		{HideFor(nil, []string{".png"}, "qt"), Target{Ext: ".PNG"}, Edit, false},
+		{HideFor(nil, []string{"IMAGE/*"}, "qt"), Target{Kind: "image/*"}, Edit, false},
+		{HideFor(nil, []string{"image/*"}, "qt"), Target{Kind: "IMAGE/*"}, Edit, false},
 		{HideFor(nil, []string{".png"}, "qt"), png, Edit, false},
 		{HideFor(nil, []string{".png"}, "qt"), mov, Open, true},
 		{HideFor([]Verb{Open}, nil, "qt"), mov, Open, false},
