@@ -166,6 +166,10 @@ func (l *list) Launch(ctx context.Context, t Target, v Verb, app App) (*exec.Cmd
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	// Under js/wasm nothing runs: not even a terminal app is handed back.
+	if runtime.GOOS == "js" {
+		return nil, ErrUnsupported
+	}
 	var entry *ListApp
 	for i := range l.apps {
 		if l.apps[i].ID == app.ID {
