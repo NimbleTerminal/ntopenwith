@@ -48,9 +48,11 @@ Every list of apps is a `Source`: `Apps` says which can act on a `Target` with a
 The operating system's own index of handlers, with its default first. On macOS
 that is Launch Services (through purego, no CGO), where "edit" is a real role, so
 Preview opens a PNG and Pixelmator edits it. On Linux and the BSDs it is the XDG
-data: the MIME globs (`mime/globs2`), the desktop entries' `MimeType=`, and
-`mimeapps.list`. On Windows it is
-the registry and the shell. The app `system` ("System default") hands the file to
+data: the MIME globs (`mime/globs2`), aliases and subclasses (`mime/aliases`,
+`mime/subclasses`), the desktop entries' `MimeType=`, and `mimeapps.list`.
+An app registered for a parent type, such as `text/plain`, is also offered for
+its subtypes, such as `text/x-go` and `text/markdown`, after their own handlers.
+On Windows it is the registry and the shell. The app `system` ("System default") hands the file to
 the OS's own opener and is offered for Open everywhere.
 
 ```go
@@ -118,7 +120,8 @@ src := ntopenwith.Layered(
 ```
 
 `Hide(ids...)` drops apps for every verb and type; `HideFor(verbs, kinds,
-ids...)` only for those verbs and kinds (either empty means all). A `ListApp`
+ids...)` only for those verbs and kinds (either empty means all). `HideFor` and
+`ListApp.Kinds` match kinds and extensions without regard to case. A `ListApp`
 with the ID of an app already listed only renames it. `Override(src)` lets a
 later source's default win. `Layered` is a `Source`, so
 it nests. A program that wants a fixed list passes only `List(...)`.
@@ -211,10 +214,12 @@ cannot make it safe.)
   whose `Applications\<exe>` class registers the verb. A ProgID's or a
   program's registered command is run by the shell through `ShellExecuteExW`,
   never rebuilt by the library.
-- **GUI children** are started with no input and their output discarded, in a
-  session of their own (a new process group on Windows) so that closing the
-  terminal does not end them, and reaped in the background. Terminal apps are
-  returned unstarted and stay with your terminal.
+- **GUI children** are started with no input and their output discarded, and
+  reaped in the background. On Unix they get a session of their own, so closing
+  the terminal does not end them. On Windows a new process group keeps Ctrl+C
+  and Ctrl+Break away; a console-subsystem program still receives
+  `CTRL_CLOSE_EVENT` when its console closes (GUI programs were never attached).
+  Terminal apps are returned unstarted and stay with your terminal.
 - **Names are data.** Bundle names, `Name=` entries and registry strings come
   back unescaped. A terminal program must make them safe before drawing them
   (`ntopen` replaces control characters).

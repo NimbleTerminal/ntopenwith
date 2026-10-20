@@ -1,5 +1,15 @@
 # `ntopenwith` CHANGELOG
 
+## v0.1.1 (2026-10-20)
+
+* Find Windows handler names through ApplicationName and executable descriptions
+  or base names when the shell has no friendly name, including packaged apps.
+* Match `HideFor` and `ListApp.Kinds` kinds and extensions without regard to case.
+* Resolve Linux/BSD MIME aliases and offer parent-type handlers and defaults,
+  including `text/plain` editors for source files.
+* Clarify Windows console-close behavior for GUI child launches in the README.
+* Build as well as vet js/wasm in the cross-platform checks to catch link failures.
+
 ## v0.1.0 (2026-10-20)
 
 First release.

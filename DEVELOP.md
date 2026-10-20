@@ -23,8 +23,8 @@ task ci               # the gate
 Each Go task runs in both modules: the library at the root, and `examples`.
 
 `task ci` runs: gofmt check, `go mod tidy -diff`, race tests, vet, the
-cross-platform builds, the examples, the notices check, and staticcheck
-(fetched at its latest version, which may need the newest Go toolchain; if it
+cross-platform builds (including a js/wasm build as well as vet), the examples,
+the notices check, and staticcheck (fetched at its latest version, which may need the newest Go toolchain; if it
 fails on a mismatch, rerun it with `GOTOOLCHAIN` set to the `go.mod` version).
 GitHub Actions runs `task ci` on `ubuntu-latest`, `macos-latest` and
 `windows-latest`, so the real-OS tests below run on all three, and `task ci-site`
@@ -36,7 +36,8 @@ on Ubuntu.
   untagged files over interfaces (`internal/xdg`'s index, `launchservices.Services`,
   `winassoc`'s registry), so their tests run on any OS. XDG reads fixture trees
   under `internal/xdg/testdata`: `mimeapps.list` precedence, removed associations,
-  `Exec` field codes and quoting, `TryExec`, `Terminal=true`.
+  `Exec` field codes and quoting, `TryExec`, `Terminal=true`, MIME aliases and
+  parent-type inheritance (ordering, defaults, cycles and traversal bounds).
 - **Resolver tables** cover every row of "Choosing and launching" in the README,
   including the binary file with only `$EDITOR` set, which must not use it.
 - **Launch tests** use a `List` app that is a test helper binary recording its
@@ -44,7 +45,8 @@ on Ubuntu.
 - **The real OS.** `system_darwin_test.go` and `system_windows_test.go` (selected
   by their file names) ask the machine and assert only what every runner has:
   that a `.txt` has an Open handler and that queries return without error.
-  Linux has no such test yet: its source is tested against the fixture trees.
+  `system_linux_test.go` checks that Open offers the system opener and Edit
+  does not; its association rules are tested against fixture trees.
 - **The examples.** `ntopen` is tested through `run` with a fake source
   injected through the `source` variable. `choose` is tested by driving its
   model with key messages over the pretend home folder and source
@@ -137,6 +139,13 @@ program (`win:app:<exe>`, a bare `*.exe` name) is listed only when its class,
 It is launched with `ShellExecuteExW` and `SEE_MASK_CLASSNAME` on that class, so
 Windows runs the command the program registered; the library builds no command
 line and never starts the program itself, so a batch file cannot be reached.
+
+Handler names try `AssocQueryStringW` with `ASSOCF_INIT_IGNOREUNKNOWN`, then the
+class's `Application\ApplicationName` (resolving indirect strings through
+`SHLoadIndirectString`), then the registered executable's first-translation
+`FileDescription`, then its base name, and finally the ProgID. The order is
+covered with fakes on every OS; Windows CI checks that the real `.txt` default
+has a name other than its ProgID.
 
 ## Releasing
 

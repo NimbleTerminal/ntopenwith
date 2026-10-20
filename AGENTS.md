@@ -13,7 +13,8 @@ CHANGELOG consistent with the code. Written for gloss to move onto
 
 - Root package `ntopenwith`: `Target`, `Verb` (`Open`, `Edit`), `App`, `Source`;
   `List`/`ListApp`, `TerminalEditor(s)`, `Layered` with its corrections (`Hide`,
-  `Rename`, `Rank`, `Alias`, `Override`); `Preferences`; `Resolver`; `Reveal`;
+  `HideFor`, `Rename`, `Rank`, `Alias`, `Override`); `Preferences`; `Resolver`;
+  `Reveal`;
   `Command` and `Start` (argv without a shell, detached start).
 - `system`: `System()` and `Refresh()`. Linux/BSD XDG, macOS Launch Services,
   Windows registry and shell, and an empty source elsewhere (including js/wasm).
@@ -21,7 +22,8 @@ CHANGELOG consistent with the code. Written for gloss to move onto
   `win_source.go`) over small interfaces, so its tests run on every OS; only the
   constructors and the OS calls are build-tagged. `cache.go` keeps listings five
   seconds.
-- `internal/xdg`: MIME globs, desktop entries, `mimeapps.list`, `Exec` expansion.
+- `internal/xdg`: MIME globs, aliases and subclasses, desktop entries,
+  `mimeapps.list`, `Exec` expansion.
   `internal/launchservices`: Launch Services through purego, behind an
   interface. `internal/winassoc`: the registry and `ShellExecuteExW`, behind an
   interface.
@@ -58,6 +60,10 @@ CHANGELOG consistent with the code. Written for gloss to move onto
   file name, or any environment variable other than `VISUAL`/`EDITOR` can add a
   command. `PATH`, `HOME` (`USERPROFILE` on Windows), `PATHEXT` and the `XDG_*`
   variables shape the OS's own list, as for any file manager.
+- `HideFor` and `ListApp.Kinds` match kinds and extensions without regard to case.
+- XDG resolves MIME aliases and offers parent-type handlers breadth first after
+  the type's own, including implicit `text/plain` parents for `text/*`. It never
+  climbs to `application/octet-stream`; cycles, depth and breadth are bounded.
 - Preferences hold IDs only; an ID launches only if the source still offers it
   for that target and verb. `Layered` launches only what it offers now.
 - Paths launched are absolute, cleaned, NUL-free, a regular file (a directory
