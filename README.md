@@ -27,6 +27,8 @@ go get nimbleterminal.dev/ntopenwith
 [`examples/choose`](#choose) over a pretend home folder, with the apps a Mac
 reported for it. Nothing launches there.
 
+![examples/choose over the pretend home folder: Open with, Tab to Edit with, d to make Pixelmator Pro the default](docs/media/choose.gif)
+
 To try it on your machine, from a clone:
 
 ```sh
@@ -238,6 +240,8 @@ machine; the code is also the shortest complete use of the library:
 ```sh
 ntopen [list|open|edit] FILE [--app ID] [--json] [--text]
 ```
+
+![ntopen listing the apps for a PNG, a Markdown file and a PDF on a Mac](docs/media/ntopen.gif)
 
 `list` (the default) prints the Open and Edit choices, the one that would be used
 marked `*`, or with `--json` an array of `{verb, id, name, default, terminal}`.
