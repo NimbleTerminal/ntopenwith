@@ -175,25 +175,27 @@ func (r *Resolver) Choices(ctx context.Context, t Target, v Verb) ([]App, error)
 }
 
 // AllApps lists every app offered for any of the types, which map a kind to
-// an extension, for either verb. Each app appears once, sorted by name
-// without regard to case.
+// an extension, for either verb, whether or not the file is text. Each app
+// appears once, sorted by name without regard to case.
 // Hidden apps are included, so that they can be shown again; the system
 // handler and the terminal editor are left out. Default is not set.
 func (r *Resolver) AllApps(ctx context.Context, types map[string]string) ([]App, error) {
 	var out []App
 	seen := map[string]bool{SystemID: true, TerminalEditorID: true}
 	for _, kind := range slices.Sorted(maps.Keys(types)) {
-		t := Target{Kind: kind, Ext: types[kind]}
-		for _, v := range []Verb{Open, Edit} {
-			apps, err := r.src.Apps(ctx, t, v)
-			if err != nil {
-				return nil, err
-			}
-			for _, a := range apps {
-				if !seen[a.ID] {
-					seen[a.ID] = true
-					a.Default = false
-					out = append(out, a)
+		for _, text := range []bool{false, true} {
+			t := Target{Kind: kind, Ext: types[kind], Text: text}
+			for _, v := range []Verb{Open, Edit} {
+				apps, err := r.src.Apps(ctx, t, v)
+				if err != nil {
+					return nil, err
+				}
+				for _, a := range apps {
+					if !seen[a.ID] {
+						seen[a.ID] = true
+						a.Default = false
+						out = append(out, a)
+					}
 				}
 			}
 		}

@@ -567,3 +567,22 @@ func TestResolverLaunchRefusesTerminalEditorForBinaryEdit(t *testing.T) {
 		t.Errorf("launched %v, want %v", src.launched, want)
 	}
 }
+
+// AllApps asks as for text too, so an app offered only for text is listed;
+// the terminal editor still is not.
+func TestAllAppsIncludesTextApps(t *testing.T) {
+	stubLookPath(t, "gedit", "viewer", "vim")
+	t.Setenv("VISUAL", "vim")
+	src := List(
+		ListApp{ID: "gedit", Name: "Gedit", Verbs: []Verb{Edit}, Text: true, Command: []string{"gedit"}},
+		ListApp{ID: "viewer", Name: "Viewer", Verbs: []Verb{Open}, Command: []string{"viewer"}},
+		TerminalEditor(),
+	)
+	got, err := NewResolver(src, Preferences{}).AllApps(context.Background(), map[string]string{"text": ".txt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"gedit", "viewer"}; !slices.Equal(ids(got), want) {
+		t.Fatalf("AllApps = %v, want %v", ids(got), want)
+	}
+}
