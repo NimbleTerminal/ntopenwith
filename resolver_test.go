@@ -101,7 +101,10 @@ func TestResolve(t *testing.T) {
 		{name: "edit saved", src: fixed(a, term, def), prefs: prefsWith(Edit, ".txt", "a"), target: txt, verb: Edit, want: "a"},
 		{name: "edit text uses editor over default", src: fixed(a, def, term), target: txt, verb: Edit, want: TerminalEditorID},
 		{name: "edit binary skips editor, uses default", src: fixed(a, def, term), target: bin, verb: Edit, want: "d"},
-		{name: "edit binary with only the editor", src: fixed(term), target: bin, verb: Edit, wantErr: ErrChoose},
+		{name: "edit binary with only the editor", src: fixed(term), target: bin, verb: Edit, wantErr: ErrNoEditor},
+		{name: "edit binary with editor and another app", src: fixed(term, a), target: bin, verb: Edit, wantErr: ErrChoose},
+		{name: "edit binary saved editor falls back", src: fixed(term, def), prefs: prefsWith(Edit, ".png", TerminalEditorID), target: bin, verb: Edit, want: "d", fallback: true},
+		{name: "edit binary editor as source default", src: fixed(App{ID: TerminalEditorID, Terminal: true, Default: true}, a), target: bin, verb: Edit, wantErr: ErrChoose},
 		{name: "edit default", src: fixed(a, def), target: txt, verb: Edit, want: "d"},
 		{name: "edit apps but no default", src: fixed(a, b), target: txt, verb: Edit, wantErr: ErrChoose},
 		{name: "edit nothing offered", src: fixed(), target: txt, verb: Edit, wantErr: ErrNoEditor},
@@ -463,4 +466,77 @@ func TestResolverConcurrent(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestChoicesEditBinaryDropsEditor(t *testing.T) {
+	term := App{ID: TerminalEditorID, Name: "Edit in terminal", Terminal: true}
+	r := NewResolver(fixed(term, App{ID: "a", Name: "A"}), Preferences{})
+	ctx := context.Background()
+	got, err := r.Choices(ctx, Target{Path: "/x/a.png"}, Edit)
+	if err != nil || !slices.Equal(ids(got), []string{"a"}) {
+		t.Fatalf("binary Choices = %v, %v", ids(got), err)
+	}
+	if err := r.SetDefault(ctx, Target{Path: "/x/a.png"}, Edit, TerminalEditorID); !errors.Is(err, ErrNotOffered) {
+		t.Fatalf("SetDefault editor on binary = %v, want ErrNotOffered", err)
+	}
+	got, _ = r.Choices(ctx, Target{Path: "/x/a.txt", Text: true}, Edit)
+	if !slices.Equal(ids(got), []string{"a", TerminalEditorID}) {
+		t.Fatalf("text Choices = %v", ids(got))
+	}
+}
+
+func TestSetHiddenLegacyID(t *testing.T) {
+	src := canonSource{fixed(App{ID: "a", Name: "A"}, App{ID: "b", Name: "B"}), map[string]string{"old": "a", "older": "a"}}
+	p := Preferences{Version: 1, Hidden: []string{"old", "b", "older"}}
+	r := NewResolver(src, p)
+	ctx := context.Background()
+	tgt := Target{Path: "/x/a.pdf"}
+	if !r.IsHidden("a") || !r.IsHidden("old") || !r.IsHidden("b") || r.IsHidden("c") {
+		t.Fatal("IsHidden does not follow aliases")
+	}
+	got, _ := r.Choices(ctx, tgt, Open)
+	if len(got) != 0 {
+		t.Fatalf("Choices = %v, want none", ids(got))
+	}
+	// Hiding again adds nothing; unhiding removes every entry for the app.
+	if err := r.SetHidden("a", true); err != nil {
+		t.Fatal(err)
+	}
+	if h := r.Preferences().Hidden; !slices.Equal(h, []string{"old", "b", "older"}) {
+		t.Fatalf("Hidden = %v after re-hiding", h)
+	}
+	if err := r.SetHidden("a", false); err != nil {
+		t.Fatal(err)
+	}
+	if h := r.Preferences().Hidden; !slices.Equal(h, []string{"b"}) {
+		t.Fatalf("Hidden = %v, want [b]", h)
+	}
+	if r.IsHidden("a") || r.IsHidden("old") {
+		t.Fatal("a still hidden")
+	}
+	got, _ = r.Choices(ctx, tgt, Open)
+	if !slices.Equal(ids(got), []string{"a"}) {
+		t.Fatalf("Choices = %v, want [a]", ids(got))
+	}
+	// Hiding by a legacy ID stores the canonical one.
+	if err := r.SetHidden("old", true); err != nil {
+		t.Fatal(err)
+	}
+	if h := r.Preferences().Hidden; !slices.Equal(h, []string{"b", "a"}) {
+		t.Fatalf("Hidden = %v, want [b a]", h)
+	}
+	// Unhiding through the legacy ID works too.
+	if err := r.SetHidden("old", false); err != nil {
+		t.Fatal(err)
+	}
+	if r.IsHidden("a") {
+		t.Fatal("a hidden after unhiding as old")
+	}
+}
+
+func TestIsHiddenProtected(t *testing.T) {
+	r := NewResolver(fixed(), Preferences{Version: 1, Hidden: []string{SystemID, TerminalEditorID}})
+	if r.IsHidden(SystemID) || r.IsHidden(TerminalEditorID) {
+		t.Fatal("protected IDs reported hidden")
+	}
 }

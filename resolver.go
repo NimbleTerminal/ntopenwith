@@ -84,8 +84,9 @@ func (r *Resolver) snapshot(t Target, v Verb) (saved string, hidden []string) {
 	return saved, hidden
 }
 
-// visible asks the source and drops hidden apps, then puts terminal apps
-// last, keeping the order otherwise.
+// visible asks the source and drops hidden apps, and the terminal editor for
+// a target that is not text, then puts terminal apps last, keeping the order
+// otherwise.
 func (r *Resolver) visible(ctx context.Context, t Target, v Verb, hidden []string) ([]App, error) {
 	all, err := r.src.Apps(ctx, t, v)
 	if err != nil {
@@ -94,6 +95,10 @@ func (r *Resolver) visible(ctx context.Context, t Target, v Verb, hidden []strin
 	var apps, terminal []App
 	for _, a := range all {
 		if !protected(a.ID) && slices.Contains(hidden, a.ID) {
+			continue
+		}
+		// Whatever the source says, $VISUAL/$EDITOR never edits a binary file.
+		if a.ID == TerminalEditorID && v == Edit && !t.Text {
 			continue
 		}
 		if a.Terminal {
@@ -232,16 +237,42 @@ func (r *Resolver) SetDefault(ctx context.Context, t Target, v Verb, id string) 
 	return nil
 }
 
-// SetHidden hides or shows the app with this ID. The system handler and the
-// terminal editor cannot be hidden.
+// SetHidden hides or shows the app with this ID. The ID is canonicalized, and
+// showing removes every entry saved under an ID that now means the same app.
+// The system handler and the terminal editor cannot be hidden.
 func (r *Resolver) SetHidden(id string, hidden bool) error {
-	if hidden && (protected(id) || protected(r.canonical(id))) {
+	id = r.canonical(id)
+	if hidden && protected(id) {
 		return fmt.Errorf("%s cannot be hidden", id)
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.prefs.SetHidden(id, hidden)
+	if hidden {
+		if !r.hiddenLocked(id) {
+			r.prefs.SetHidden(id, true)
+		}
+		return nil
+	}
+	r.prefs.Hidden = slices.DeleteFunc(r.prefs.Hidden, func(h string) bool { return r.canonical(h) == id })
 	return nil
+}
+
+// IsHidden reports whether the app with this ID is hidden, whether it was
+// hidden under this ID or under one that now stands for it. The system handler
+// and the terminal editor are never hidden.
+func (r *Resolver) IsHidden(id string) bool {
+	id = r.canonical(id)
+	if protected(id) {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.hiddenLocked(id)
+}
+
+// hiddenLocked reports whether a saved hidden ID is, canonically, id.
+func (r *Resolver) hiddenLocked(id string) bool {
+	return slices.ContainsFunc(r.prefs.Hidden, func(h string) bool { return r.canonical(h) == id })
 }
 
 // Launch checks t's path and starts app on it through the source. A terminal
