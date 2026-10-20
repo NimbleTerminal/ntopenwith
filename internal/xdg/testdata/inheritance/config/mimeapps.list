@@ -1,0 +1,13 @@
+[Default Applications]
+text/plain=plain.desktop;
+application/x-json=missing.desktop;json.desktop;
+application/x-child=missing.desktop;
+application/x-right=right.desktop;
+application/x-deep=deep.desktop;
+application/x-binary=missing.desktop;
+[Added Associations]
+text/x-go=added.desktop;
+application/x-json=json.desktop;
+[Removed Associations]
+text/plain=removed.desktop;
+application/x-json=removed.desktop;

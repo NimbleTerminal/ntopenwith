@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=left
+Exec=present-tool %f
+MimeType=application/x-left;
+Categories=TextEditor;

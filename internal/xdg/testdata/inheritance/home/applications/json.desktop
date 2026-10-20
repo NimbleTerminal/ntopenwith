@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=json
+Exec=present-tool %f
+MimeType=application/x-json;
+Categories=TextEditor;

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=octet
+Exec=present-tool %f
+MimeType=application/octet-stream;
+Categories=TextEditor;

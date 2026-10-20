@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=go
+Exec=present-tool %f
+MimeType=text/x-go;
+Categories=TextEditor;

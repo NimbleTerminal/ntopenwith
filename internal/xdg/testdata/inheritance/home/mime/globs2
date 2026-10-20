@@ -1,0 +1,3 @@
+50:text/x-go:*.go
+50:application/x-json:*.json
+50:text/markdown:*.md

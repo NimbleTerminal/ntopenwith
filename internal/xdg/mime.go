@@ -64,7 +64,7 @@ func suffixGlob(g string) (string, bool) {
 
 // TypeOf returns the MIME type for a file name or a bare extension such as
 // ".png", matching globs without regard to case. Of the globs that match, the
-// highest weight wins, then the longest. An unknown name is
+// highest weight wins, then the longest. Aliases resolve to the canonical type. An unknown name is
 // application/octet-stream. Only the globs are consulted, never the file's
 // content.
 func (ix *Index) TypeOf(name string) string {
@@ -86,5 +86,5 @@ func (ix *Index) TypeOf(name string) string {
 	if !found {
 		return unknownType
 	}
-	return best.mime
+	return ix.canonical(best.mime)
 }

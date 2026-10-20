@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=deep
+Exec=present-tool %f
+MimeType=application/x-deep;
+Categories=TextEditor;

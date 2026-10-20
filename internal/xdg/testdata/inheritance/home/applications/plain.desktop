@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=plain
+Exec=present-tool %f
+MimeType=text/plain;
+Categories=TextEditor;

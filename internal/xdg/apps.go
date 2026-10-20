@@ -14,6 +14,8 @@ const maxDesktopFiles = 50000
 // It is read once by [Load] and never changes, so it is safe for concurrent use.
 type Index struct {
 	globs   map[string]glob
+	aliases map[string]string
+	parents map[string][]string
 	entries map[string]Entry
 	byMime  map[string][]string // MimeType= handlers, in load order
 	assocs  []mimeapps          // in lookup order, most important first
@@ -33,11 +35,14 @@ func Load(env Env, lookPath func(string) (string, error)) (*Index, error) {
 	}
 	ix := &Index{
 		globs:   map[string]glob{},
+		aliases: map[string]string{},
+		parents: map[string][]string{},
 		entries: map[string]Entry{},
 		byMime:  map[string][]string{},
 	}
 
 	dataDirs := nonEmpty(append([]string{env.DataHome}, env.DataDirs...))
+	ix.readInheritance(dataDirs)
 	for _, dir := range dataDirs {
 		readGlobs(dir, ix.globs)
 	}
@@ -96,7 +101,7 @@ func Load(env Env, lookPath func(string) (string, error)) (*Index, error) {
 			}
 			ix.entries[id] = e
 			for _, m := range e.MimeTypes {
-				m = strings.ToLower(m)
+				m = ix.canonical(m)
 				ix.byMime[m] = append(ix.byMime[m], id)
 			}
 			return nil
@@ -105,7 +110,7 @@ func Load(env Env, lookPath func(string) (string, error)) (*Index, error) {
 
 	for _, path := range mimeappsPaths(env, dataDirs) {
 		if data, ok := readBounded(path, maxMimeappsSize); ok {
-			ix.assocs = append(ix.assocs, parseMimeapps(data))
+			ix.assocs = append(ix.assocs, ix.parseMimeapps(data))
 		}
 	}
 	return ix, nil
@@ -141,7 +146,7 @@ func mimeappsPaths(env Env, dataDirs []string) []string {
 	return paths
 }
 
-func parseMimeapps(data []byte) mimeapps {
+func (ix *Index) parseMimeapps(data []byte) mimeapps {
 	m := mimeapps{
 		defaults: map[string][]string{},
 		added:    map[string][]string{},
@@ -159,19 +164,33 @@ func parseMimeapps(data []byte) mimeapps {
 		default:
 			return
 		}
-		key = strings.ToLower(key)
+		key = ix.canonical(key)
 		into[key] = append(into[key], splitList(value)...)
 	})
 	return m
 }
 
-// Handlers returns the apps for a MIME type, best first: those in
-// [Added Associations] (in file order, most important file first), then those
-// whose MimeType= lists the type, without any in [Removed Associations] and
-// without duplicates. A removal in one file hides the app from the files and
-// entries after it.
+// Handlers returns the type's own apps, then its parents' breadth first,
+// without duplicates. For each type, [Added Associations] come before
+// MimeType= entries, honoring [Removed Associations] in lookup order.
+// A removal in one file hides the app from the files and entries after it
+// for that type. MIME aliases are resolved before looking up associations.
 func (ix *Index) Handlers(mime string) []Entry {
-	mime = strings.ToLower(mime)
+	seen := map[string]bool{}
+	var out []Entry
+	for _, typ := range ix.ancestry(mime) {
+		for _, e := range ix.handlers(typ) {
+			if !seen[e.ID] {
+				seen[e.ID] = true
+				out = append(out, e)
+			}
+		}
+	}
+	return out
+}
+
+// handlers returns only the type's own associations, without inheritance.
+func (ix *Index) handlers(mime string) []Entry {
 	removed := map[string]bool{}
 	seen := map[string]bool{}
 	var out []Entry
@@ -195,15 +214,20 @@ func (ix *Index) Handlers(mime string) []Entry {
 	return out
 }
 
-// Default returns the first app named in a [Default Applications] line for
-// the MIME type that exists, searching the files in lookup order. A name that
-// is missing or was dropped (hidden, no TryExec program, and so on) is skipped.
+// Default returns the first usable [Default Applications] entry for the
+// type, else its nearest parent's. Missing, filtered or unassociated apps
+// are skipped. MIME aliases are resolved before looking up defaults.
 func (ix *Index) Default(mime string) (Entry, bool) {
-	mime = strings.ToLower(mime)
-	for _, f := range ix.assocs {
-		for _, id := range f.defaults[mime] {
-			if e, ok := ix.entries[id]; ok {
-				return e, true
+	associated := map[string]bool{}
+	for _, e := range ix.Handlers(mime) {
+		associated[e.ID] = true
+	}
+	for _, typ := range ix.ancestry(mime) {
+		for _, f := range ix.assocs {
+			for _, id := range f.defaults[typ] {
+				if e, ok := ix.entries[id]; ok && associated[id] {
+					return e, true
+				}
 			}
 		}
 	}

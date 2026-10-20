@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=removed
+Exec=present-tool %f
+MimeType=text/plain;application/x-json;
+Categories=TextEditor;

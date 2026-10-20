@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=third
+Exec=present-tool %f
+MimeType=application/x-third;
+Categories=TextEditor;

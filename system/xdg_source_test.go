@@ -188,6 +188,39 @@ func TestLaunchTerminalEntryReturnsAnUnstartedCommand(t *testing.T) {
 	}
 }
 
+func TestEditInheritsTextPlain(t *testing.T) {
+	src, appsDir, png := fixture(t, "[Default Applications]\ntext/plain=nano.desktop;\n")
+	mimeDir := filepath.Join(filepath.Dir(appsDir), "mime")
+	for name, body := range map[string]string{
+		"globs2":     "50:text/x-go:*.go\n50:application/x-json:*.json\n",
+		"aliases":    "application/x-json application/json\n",
+		"subclasses": "application/json text/plain\n",
+	} {
+		if err := os.WriteFile(filepath.Join(mimeDir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	started := capture(t)
+	for _, name := range []string{"source.go", "data.json"} {
+		path := filepath.Join(filepath.Dir(png), name)
+		if err := os.WriteFile(path, []byte("text"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		target := ntopenwith.Target{Path: path, Text: true}
+		apps, err := src.Apps(context.Background(), target, ntopenwith.Edit)
+		if err != nil || len(apps) != 1 || apps[0].ID != "xdg:nano.desktop" || apps[0].Default {
+			t.Fatalf("Edit %s = %+v, %v; want nano with no Edit default", name, apps, err)
+		}
+		cmd, err := src.Launch(context.Background(), target, ntopenwith.Edit, apps[0])
+		if err != nil || cmd == nil || cmd.Process != nil || !reflect.DeepEqual(cmd.Args, []string{"nano", path}) {
+			t.Fatalf("Launch %s = %v, %v; want an unstarted nano command", name, cmd, err)
+		}
+	}
+	if len(*started) != 0 {
+		t.Fatalf("started = %v; terminal apps must stay unstarted", *started)
+	}
+}
+
 func TestLaunchRefusesWhatIsNoLongerOffered(t *testing.T) {
 	src, apps, png := fixture(t, "")
 	got := capture(t)

@@ -1,0 +1,10 @@
+application/json application/x-parent
+application/x-child application/x-left
+application/x-child application/x-right
+application/x-left application/x-deep
+application/x-cycle-a application/x-cycle-b
+application/x-cycle-b application/x-cycle-a
+application/x-cycle-b text/plain
+application/x-binary application/octet-stream
+application/octet-stream text/plain
+malformed
