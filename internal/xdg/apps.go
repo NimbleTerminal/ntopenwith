@@ -48,7 +48,12 @@ func Load(env Env, lookPath func(string) (string, error)) (*Index, error) {
 	files := 0
 	for _, dir := range dataDirs {
 		root := filepath.Join(dir, "applications")
-		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		// WalkDir does not enter a symlinked root, as stow and Nix make.
+		walkRoot, err := filepath.EvalSymlinks(root)
+		if err != nil {
+			continue
+		}
+		_ = filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				if d != nil && d.IsDir() {
 					return fs.SkipDir
@@ -64,10 +69,11 @@ func Load(env Env, lookPath func(string) (string, error)) (*Index, error) {
 			if files++; files > maxDesktopFiles {
 				return fs.SkipAll
 			}
-			rel, err := filepath.Rel(root, path)
+			rel, err := filepath.Rel(walkRoot, path)
 			if err != nil {
 				return nil
 			}
+			path = filepath.Join(root, rel)
 			id := strings.ReplaceAll(filepath.ToSlash(rel), "/", "-")
 			if seen[id] {
 				return nil

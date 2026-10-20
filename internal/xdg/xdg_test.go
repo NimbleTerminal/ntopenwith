@@ -2,6 +2,7 @@ package xdg
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -280,7 +281,23 @@ func TestExpandExec(t *testing.T) {
 		{"F", Entry{Exec: "code --new-window %F"}, []string{"code", "--new-window", path}},
 		{"u", Entry{Exec: "viewer %u"}, []string{"viewer", path}},
 		{"quoted program", Entry{Exec: `"/opt/My App/bin/app" %u`}, []string{"/opt/My App/bin/app", path}},
-		{"path inside a quoted word", Entry{Exec: `sh -c "echo \"%f\""`}, []string{"sh", "-c", `echo "` + path + `"`}},
+		{"path inside a quoted word", Entry{Exec: `sh -c "echo \"%f\""`}, nil},
+		{"path inside a quoted part", Entry{Exec: `foo --file="%f"`}, nil},
+		{"quoted F", Entry{Exec: `foo "%F"`}, nil},
+		{"F inside a larger argument", Entry{Exec: "foo --files=%F"}, nil},
+		{"U inside a larger argument", Entry{Exec: "foo x%U"}, nil},
+		{"two file codes", Entry{Exec: "foo %f %f"}, nil},
+		{"two file codes in one argument", Entry{Exec: "foo %F%U"}, nil},
+		{"f and F", Entry{Exec: "foo %f %F"}, nil},
+		{"program from f", Entry{Exec: "%f"}, nil},
+		{"program from k", Entry{Exec: "%k --x", File: "/a/b.desktop"}, nil},
+		{"program from c", Entry{Exec: "%c", Name: "N"}, nil},
+		{"program from deprecated", Entry{Exec: "%d foo"}, nil},
+		{"program from i", Entry{Exec: "%i foo", Icon: "pic"}, nil},
+		{"program with percent", Entry{Exec: "100%%-tool %f"}, []string{"100%-tool", path}},
+		{"unquoted embedded f", Entry{Exec: "foo --file=%f"}, []string{"foo", "--file=" + path}},
+		{"quoted percent is literal", Entry{Exec: `foo "50%%" %f`}, []string{"foo", "50%", path}},
+		{"quoted name is fine", Entry{Exec: `foo "%c" %f`, Name: "Qux App"}, []string{"foo", "Qux App", path}},
 		{"escapes", Entry{Exec: "p \"a\\$b\\`c\\\\d\""}, []string{"p", "a$b`c\\d", path}},
 		{"literal percent", Entry{Exec: "foo %%f %f"}, []string{"foo", "%f", path}},
 		{"embedded", Entry{Exec: "foo --file=%f"}, []string{"foo", "--file=" + path}},
@@ -328,5 +345,43 @@ func TestExpandExecPathHasPercent(t *testing.T) {
 	}
 	if _, err := ExpandExec(Entry{Exec: "v %f"}, ""); err == nil {
 		t.Fatal("want an error for no path")
+	}
+}
+
+func TestExpandExecInjectionStaysAnError(t *testing.T) {
+	_, err := ExpandExec(Entry{Exec: `sh -c "echo \"%f\""`}, `/tmp/x"; touch /tmp/pwned; ".png`)
+	if err == nil {
+		t.Fatal("a path was put inside another program's command language")
+	}
+}
+
+func TestSymlinkedApplicationsFolder(t *testing.T) {
+	real := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(real, "kde"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(rel, body string) {
+		if err := os.WriteFile(filepath.Join(real, rel), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("linked.desktop", "[Desktop Entry]\nType=Application\nName=Linked\nExec=linked %f\nMimeType=text/x-linked;\n")
+	write("kde/foo.desktop", "[Desktop Entry]\nType=Application\nName=Foo\nExec=foo %f\nMimeType=text/x-linked;\n")
+
+	data := t.TempDir()
+	if err := os.Symlink(real, filepath.Join(data, "applications")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	ix, err := Load(Env{DataHome: data}, fakeLook)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := ix.Handlers("text/x-linked")
+	if want := []string{"kde-foo.desktop", "linked.desktop"}; !reflect.DeepEqual(ids(got), want) {
+		t.Fatalf("Handlers = %v, want %v", ids(got), want)
+	}
+	// The file path stays under the folder that was named, for %k.
+	if want := filepath.Join(data, "applications", "linked.desktop"); got[1].File != want {
+		t.Fatalf("File = %q, want %q", got[1].File, want)
 	}
 }
