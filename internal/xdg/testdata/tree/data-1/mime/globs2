@@ -1,0 +1,17 @@
+# Test globs
+50:image/png:*.png
+50:text/markdown:*.md
+50:image/jpeg:*.jpg
+50:image/jpeg:*.jpeg
+50:application/gzip:*.gz
+50:application/x-compressed-tar:*.tar.gz
+50:text/x-dup:*.dup
+60:text/x-high:*.dup
+50:text/x-makefile:Makefile
+50:text/x-single:*.s?
+50:text/x-bracket:*.[ab]
+50:text/x-prefix:readme*
+50:text/x-case:*.C:cs
+50:text/x-cfile:*.c
+bad line
+x:text/x-badweight:*.bad

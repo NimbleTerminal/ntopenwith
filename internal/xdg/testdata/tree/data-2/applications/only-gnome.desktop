@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=OnlyGnome
+Exec=OnlyGnome %f
+MimeType=text/x-filter;
+OnlyShowIn=KDE;GNOME;

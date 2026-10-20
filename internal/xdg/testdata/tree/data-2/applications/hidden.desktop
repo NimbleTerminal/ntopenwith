@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Hidden
+Exec=Hidden %f
+MimeType=text/x-filter;
+Hidden=true

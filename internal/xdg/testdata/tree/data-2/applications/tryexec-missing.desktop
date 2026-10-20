@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=TryMissing
+Exec=TryMissing %f
+MimeType=text/x-filter;
+TryExec=nope-not-here

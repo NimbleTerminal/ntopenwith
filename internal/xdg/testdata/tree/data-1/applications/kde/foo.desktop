@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Foo
+Exec=Foo %f
+MimeType=text/x-kde;

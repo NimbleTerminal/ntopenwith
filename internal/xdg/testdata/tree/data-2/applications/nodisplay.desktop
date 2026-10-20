@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=NoDisplay
+Exec=NoDisplay %f
+MimeType=text/x-filter;
+NoDisplay=true

@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=DirShadow
+Exec=DirShadow %f
+MimeType=text/x-shadow;

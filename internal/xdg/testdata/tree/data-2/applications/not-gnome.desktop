@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=NotGnome
+Exec=NotGnome %f
+MimeType=text/x-filter;
+NotShowIn=GNOME;

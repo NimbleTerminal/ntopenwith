@@ -1,0 +1,5 @@
+[Default Applications]
+text/markdown=e.desktop;
+image/png=c.desktop;
+[Added Associations]
+image/png=b.desktop;

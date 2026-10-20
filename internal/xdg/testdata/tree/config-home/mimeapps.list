@@ -1,0 +1,6 @@
+[Added Associations]
+image/png=e.desktop;c.desktop;
+[Removed Associations]
+image/png=b.desktop;
+[Default Applications]
+image/png=missing.desktop;a.desktop;

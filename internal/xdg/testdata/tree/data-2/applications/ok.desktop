@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Plain
+Exec=Plain %f
+MimeType=text/x-filter;

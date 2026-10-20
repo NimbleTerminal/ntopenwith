@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Other group
+Exec=x %f
+[Desktop Action new]
+Name=Other
+Hidden=true
+MimeType=text/x-filter;

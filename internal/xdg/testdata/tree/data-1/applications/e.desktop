@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=E
+Exec=E %f
+MimeType=text/markdown;

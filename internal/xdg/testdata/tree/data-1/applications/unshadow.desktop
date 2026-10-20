@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Back
+Exec=Back %f
+MimeType=text/x-shadow;

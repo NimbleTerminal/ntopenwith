@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=HomeShadow
+Exec=HomeShadow %f
+MimeType=text/x-shadow;

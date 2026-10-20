@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=DBusOnly
+DBusActivatable=true
+MimeType=text/x-filter;

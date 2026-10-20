@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=NotKde
+Exec=NotKde %f
+MimeType=text/x-filter;
+NotShowIn=KDE;

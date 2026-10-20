@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=TryOk
+Exec=TryOk %f
+MimeType=text/x-filter;
+TryExec=present-tool
