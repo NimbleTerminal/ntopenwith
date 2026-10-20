@@ -1,8 +1,10 @@
-// This file has no build tag on purpose: for now it serves every OS. Tasks 9,
-// 10 and 11 each add their own OS file (darwin, windows, XDG) and narrow this
-// one by adding the matching "!os" term to a constraint, ending with
-// //go:build !darwin && !windows && !linux && !freebsd && !openbsd && !netbsd
-// which also covers js/wasm.
+//go:build !linux && !freebsd && !openbsd && !netbsd
+
+// This file serves every OS without its own file. Linux and the BSDs have
+// system_xdg.go; Tasks 10 and 11 add darwin and windows, each narrowing the
+// constraint above with its "!os" term, until it reads: not darwin, not
+// windows, not linux, not freebsd, not openbsd, not netbsd. That also covers
+// js/wasm.
 
 package system
 

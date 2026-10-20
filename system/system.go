@@ -11,10 +11,6 @@ import (
 // start launches a command; tests replace it.
 var start = ntopenwith.Start
 
-// The per-OS sources (Tasks 9-11) launch through start; until they land,
-// keep the hook from reading as unused.
-var _ = start
-
 // shared holds the listings of the process's one Source.
 var shared cache
 

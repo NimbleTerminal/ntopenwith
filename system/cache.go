@@ -29,6 +29,7 @@ type cacheEntry struct {
 type cache struct {
 	mu      sync.Mutex
 	entries map[cacheKey]cacheEntry
+	gen     uint64 // bumped by clear, so other holders of old data can tell
 }
 
 // get returns the listing for key and v, calling fill when there is none or
@@ -60,4 +61,12 @@ func (c *cache) clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries = nil
+	c.gen++
+}
+
+// generation counts the times the cache was cleared.
+func (c *cache) generation() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.gen
 }
