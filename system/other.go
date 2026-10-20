@@ -1,3 +1,5 @@
+//go:build !windows && !linux && !freebsd && !openbsd && !netbsd
+
 package system
 
 import (
